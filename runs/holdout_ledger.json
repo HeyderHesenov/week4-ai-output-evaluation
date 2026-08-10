@@ -1,0 +1,18 @@
+[
+  {
+    "run_id": "20260810T082912Z-holdout-baseline",
+    "at": "2026-08-10T08:29:12Z",
+    "variant_id": "baseline",
+    "harness_commit": "(commit yoxdur)",
+    "case_count": 8,
+    "note": "holdout kor yoxlama — baseline"
+  },
+  {
+    "run_id": "20260810T083111Z-holdout-v1_tam_cavab",
+    "at": "2026-08-10T08:31:11Z",
+    "variant_id": "v1_tam_cavab",
+    "harness_commit": "(commit yoxdur)",
+    "case_count": 8,
+    "note": "holdout kor yoxlama — v1"
+  }
+]

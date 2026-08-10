@@ -1,0 +1,26 @@
+# Mühit dəyişənləri — əsl API açarı heç vaxt repo-ya düşməməlidir
+.env
+.env.*
+!.env.example
+# `.env.*` `.envrc`-i TUTMUR (nöqtə yoxdur), direnv isə açarı məhz orada saxlayır
+.envrc
+*.key
+*.pem
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Redaktor / OS / alət qovluqları
+.DS_Store
+.idea/
+.vscode/
+
+# İnsan etiketləri müəllifin lokal işidir; nəticəsi logs/judge_bias.md-də dərc olunur.
+# Faylın özü commit edilir — aşağıdakı sətir QƏSDƏN şərhdədir, sənədləşdirmə üçün saxlanılır:
+# data/human_labels.yaml

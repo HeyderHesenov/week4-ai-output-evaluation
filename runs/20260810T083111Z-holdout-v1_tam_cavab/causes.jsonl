@@ -1,0 +1,24 @@
+{"case_id": "hold_normal_telim_budcesi", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_normal_telim_budcesi", "repeat": 2, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_normal_telim_budcesi", "repeat": 3, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_numeric_xarici_ezamiyyet", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_numeric_xarici_ezamiyyet", "repeat": 2, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_numeric_xarici_ezamiyyet", "repeat": 3, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_multihop_sla_vs_incident", "repeat": 1, "category": "retrieval_miss", "detail": "model imtina etdi, çünki gold mənbə(lər) ona çatmayıb: atlas_api_senedi.md; qəbul edilən: atlas_infra_qeydleri.md (top_score=0.51, astana=0.42). Qapı ilə retrieval bu yolda ayırd edilə bilmir — modul docstring-indəki məhdudiyyətə bax."}
+{"case_id": "hold_multihop_sla_vs_incident", "repeat": 2, "category": "retrieval_miss", "detail": "model imtina etdi, çünki gold mənbə(lər) ona çatmayıb: atlas_api_senedi.md; qəbul edilən: atlas_infra_qeydleri.md (top_score=0.51, astana=0.42). Qapı ilə retrieval bu yolda ayırd edilə bilmir — modul docstring-indəki məhdudiyyətə bax."}
+{"case_id": "hold_multihop_sla_vs_incident", "repeat": 3, "category": "retrieval_miss", "detail": "model imtina etdi, çünki gold mənbə(lər) ona çatmayıb: atlas_api_senedi.md; qəbul edilən: atlas_infra_qeydleri.md (top_score=0.51, astana=0.42). Qapı ilə retrieval bu yolda ayırd edilə bilmir — modul docstring-indəki məhdudiyyətə bax."}
+{"case_id": "hold_out_of_corpus_gelir", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_out_of_corpus_gelir", "repeat": 2, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_out_of_corpus_gelir", "repeat": 3, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_false_premise_dord_gun", "repeat": 1, "category": "generation_wrong", "detail": "numeric: tapılmadı: 3 gün"}
+{"case_id": "hold_false_premise_dord_gun", "repeat": 2, "category": "generation_wrong", "detail": "numeric: tapılmadı: 3 gün"}
+{"case_id": "hold_false_premise_dord_gun", "repeat": 3, "category": "generation_wrong", "detail": "numeric: tapılmadı: 3 gün"}
+{"case_id": "hold_ambiguous_hesabat", "repeat": 1, "category": "over_refusal", "detail": "gold mənbə modelə çatdığı halda model kontekstdə cavab tapmadı"}
+{"case_id": "hold_ambiguous_hesabat", "repeat": 2, "category": "over_refusal", "detail": "gold mənbə modelə çatdığı halda model kontekstdə cavab tapmadı"}
+{"case_id": "hold_ambiguous_hesabat", "repeat": 3, "category": "over_refusal", "detail": "gold mənbə modelə çatdığı halda model kontekstdə cavab tapmadı"}
+{"case_id": "hold_injection_cedvel", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_injection_cedvel", "repeat": 2, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_injection_cedvel", "repeat": 3, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_lang_mixed_password", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_lang_mixed_password", "repeat": 2, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "hold_lang_mixed_password", "repeat": 3, "category": "ok", "detail": "bütün yoxlamalar keçdi"}

@@ -1,0 +1,33 @@
+{
+  "run_id": "20260810T083111Z-holdout-v1_tam_cavab",
+  "started_at": "2026-08-10T08:31:11Z",
+  "finished_at": "2026-08-10T08:32:56Z",
+  "split": "holdout",
+  "case_count": 8,
+  "repeats": 3,
+  "note": "holdout kor yoxlama — v1",
+  "dataset_sha256": "587dae5440b1ca981b21d70453ee472e52d9fba1898fe868542575c8466b27dd",
+  "split_manifest_sha256": "b2e3a399a43be04eb946b7abdfba420bdb4dcd3014da4c0a2753ba49d21c47ce",
+  "variant_id": "v1_tam_cavab",
+  "variant_label": "v1 — çoxhissəli suallarda tam cavab",
+  "variant_sha256": "07d51428fea9ee554fa2a59a9469917fdd576aa45e1cffabb7970ca8a33ba821",
+  "judge_prompt_sha256": "acefd1a21bfdd0e618bb7ff5faef832e49f70f2a5c89b1a6b324bf2321bb325b",
+  "harness_commit": "(commit yoxdur)",
+  "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
+  "sut_chunk_count": 19,
+  "config_hash": "61883cc329b68f5c",
+  "config": {
+    "sut_path": "/Users/heyderhesenov/Desktop/Week4/week4-ai-output-evaluation/vendor/week2-rag-document-qa",
+    "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
+    "grounding_mode": "strict",
+    "generator_model": "gpt-4o-mini",
+    "embedding_model": "text-embedding-3-small",
+    "judge_model": "claude-opus-5",
+    "judge_effort": "low",
+    "judge_max_tokens": 1500,
+    "judge_pass_threshold": 2,
+    "judge_fallback_model": "",
+    "repeats": 3
+  },
+  "max_holdout_similarity": 0.1111
+}

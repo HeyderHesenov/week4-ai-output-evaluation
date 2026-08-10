@@ -1,0 +1,77 @@
+# ===========================================================================
+# Variant v1 — «tam cavab»: çoxhissəli suallarda natamamlığın aradan
+# qaldırılması.
+#
+# MƏNŞƏ (yalnız dev, `source_case_ids` ilə elan olunub):
+#
+#   dev_open_incident_s1 — model `atlas_infra_qeydleri.md` blokuna istinad
+#     etdi və oradakı İKİ faktdan yalnız birini yazdı: «15 dəqiqə ərzində
+#     cavab». Eyni blokda «beş iş günü ərzində günahlandırmasız (blameless)
+#     təhlil sənədi» cümləsi də var idi. Hakim: bal 1, flags=['incomplete'].
+#     Yəni məlumat modelə ÇATMIŞDI — o, tapdığı ilk faktla dayandı.
+#     Bu, prompt ilə düzələn haldır.
+#
+#   dev_multihop_mtls_cache — model bütün suala imtina etdi. Qeyd: burada
+#     kök səbəb qapı/retrieval qatındadır (gold mənbələrdən biri modelə heç
+#     çatmayıb), ona görə bu case-in DETERMİNİSTİK yoxlaması prompt ilə
+#     DÜZƏLMİR (2 fərqli mənbəyə istinad tələb olunur). Bu case yalnız
+#     13-cü qaydanın (qismən əhatə) yazılmasına səbəb olub.
+#
+# HİPOTEZ
+#   SUT-un 5-ci qaydası belədir: «kontekstdə suala TAM VƏ YA QİSMƏN cavab
+#   YOXDURSA ... yalnız imtina cümləsini yaz», 6-cı qayda isə «qismən
+#   əminlik kifayət deyil». Bu ikisi birlikdə modeli «şübhə varsa hər şeyə
+#   imtina et» davranışına itələyir və eyni zamanda «bir fakt tapdım, bəsdir»
+#   davranışını cəzalandırmır. Variant həmin boşluğu doldurur.
+#
+# NƏYİ DƏYİŞMİR
+#   1, 2 və 5-ci qaydalar (uydurmama) qüvvədə qalır. Variant yalnız
+#   NATAMAMLIĞI hədəf alır, hallüsinasiya qapısını açmır — 14-cü qayda bunu
+#   açıq təkrarlayır. Gözlənilən risk: qismən cavab imkanı `out_of_corpus`
+#   və `false_premise` case-lərində yanlış-müsbətə səbəb ola bilər; həmin
+#   kateqoriyalar hesabatda ayrıca izlənilir.
+# ===========================================================================
+
+id: v1_tam_cavab
+label: "v1 — çoxhissəli suallarda tam cavab"
+description: >-
+  Sual bir neçə fakt tələb edirsə, hər birinə ayrıca cavab verilməsini və
+  bloklar yalnız bir hissəni əhatə edəndə tam imtina əvəzinə qismən cavab +
+  açıq boşluq bildirişini tələb edir.
+
+system_suffix: |-
+  ƏLAVƏ QAYDALAR — ÇOXHİSSƏLİ SUALLAR:
+  12. Sual birdən çox fakt tələb edirsə («X nədir və Y nədir», «hansı
+      addımlar atılmalıdır»), tələb olunan hissələri müəyyən et və HƏR
+      BİRİNƏ cavab ver. İstinad etdiyin blokda tələb olunan digər fakt da
+      varsa, onu buraxma — tapdığın ilk faktla dayanma.
+  13. Bloklar tələb olunan hissələrin yalnız bir qismini əhatə edirsə:
+      əhatə olunanları istinadla yaz, əhatə olunmayanı isə bir cümlə ilə
+      «bloklarda göstərilməyib» kimi qeyd et. Bütün suala imtina etmə.
+      5-ci qayda yalnız HEÇ BİR hissəyə cavab olmadıqda tətbiq olunur.
+  14. 1, 2 və 5-ci qaydalar qüvvədə qalır: bloklarda açıq yazılmayan heç bir
+      məlumatı uydurma. Natamamlığı etiraf etmək uydurmaqdan yaxşıdır.
+
+few_shot:
+  # Nümunə 1 — bir blokda iki tələb olunan fakt: hər ikisi yazılır.
+  - user: |-
+      KONTEKST:
+      [1] Anbarın maksimum tutumu 500 paletdir. İnventarizasiya hər rüb keçirilir.
+
+      SUAL: Anbarın tutumu nə qədərdir və inventarizasiya nə vaxt keçirilir?
+    assistant: >-
+      Anbarın maksimum tutumu 500 paletdir və inventarizasiya hər rüb
+      keçirilir [1].
+    source_case_ids: [dev_open_incident_s1]
+
+  # Nümunə 2 — bloklar sualın yalnız bir hissəsini əhatə edir: qismən cavab
+  # + açıq boşluq bildirişi, tam imtina DEYİL.
+  - user: |-
+      KONTEKST:
+      [1] Kitabxana həftə içi saat 09:00-dan 18:00-dək işləyir.
+
+      SUAL: Kitabxananın iş saatları və üzvlük haqqı nə qədərdir?
+    assistant: >-
+      Kitabxana həftə içi saat 09:00-dan 18:00-dək işləyir [1]. Üzvlük haqqı
+      bloklarda göstərilməyib.
+    source_case_ids: [dev_multihop_mtls_cache]

@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------------
+# Model qiymətləri — milyon token başına USD.
+#
+# `verified` sahəsi QƏSDƏN mövcuddur: təsdiqlənməmiş qiymət hesabatda
+# xəbərdarlıq banneri çıxarır. Yoxlanmamış rəqəmi fakt kimi təqdim etmək
+# qiymətləndirmə layihəsində ən asan tutulan səhvdir — buna görə burada
+# "bilmirəm" demək mümkündür.
+#
+# Keş vurğuları yalnız Anthropic tərəfdə mənalıdır: hakim system prompt-u
+# `cache_control: ephemeral` ilə keşlənir, oxu ~0.1x, yazı ~1.25x (5 dəq TTL).
+# ---------------------------------------------------------------------------
+
+version: "2026-08-09"
+as_of: "2026-08-09"
+
+sources:
+  anthropic: "https://platform.claude.com/docs/en/pricing"
+  openai: "https://openai.com/api/pricing"
+
+models:
+  # --- Anthropic (hakim) ---------------------------------------------------
+  claude-opus-5:
+    provider: anthropic
+    input_per_mtok: 5.00
+    output_per_mtok: 25.00
+    cache_read_multiplier: 0.1
+    cache_write_multiplier: 1.25
+    verified: true
+
+  # DİQQƏT — 2026-08-31-ə qədər tanıtım qiyməti qüvvədədir: $2.00 / $10.00.
+  # Aşağıdakı rəqəmlər siyahı (list) qiymətidir. Hazırkı run-lar hakim kimi
+  # `claude-opus-5` işlədir, ona görə heç bir ölçülmüş xərcə təsiri YOXDUR;
+  # bu model işlədilsə, rəqəm tanıtım dövründə xərci OLDUĞUNDAN ÇOX göstərər.
+  # `verified: false` qəsdəndir: siyahı qiyməti bu tarixdə faktiki qiymət deyil.
+  claude-sonnet-5:
+    provider: anthropic
+    input_per_mtok: 3.00
+    output_per_mtok: 15.00
+    cache_read_multiplier: 0.1
+    cache_write_multiplier: 1.25
+    verified: false
+
+  claude-haiku-4-5:
+    provider: anthropic
+    input_per_mtok: 1.00
+    output_per_mtok: 5.00
+    cache_read_multiplier: 0.1
+    cache_write_multiplier: 1.25
+    verified: true
+
+  # --- OpenAI (generator + embedding) --------------------------------------
+  # verified: false — bu rəqəmlər canlı qiymət səhifəsinə qarşı
+  # yoxlanmayıb. Hesabatda banner çıxır və rəqəm "təxmini" kimi oxunur.
+  gpt-4o-mini:
+    provider: openai
+    input_per_mtok: 0.15
+    output_per_mtok: 0.60
+    verified: false
+
+  text-embedding-3-small:
+    provider: openai
+    input_per_mtok: 0.02
+    output_per_mtok: 0.00
+    verified: false

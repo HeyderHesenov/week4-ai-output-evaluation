@@ -1,0 +1,30 @@
+{
+  "dataset_sha256": "587dae5440b1ca981b21d70453ee472e52d9fba1898fe868542575c8466b27dd",
+  "dev_ids": [
+    "dev_ambiguous_limit",
+    "dev_boundary_cache_limit",
+    "dev_false_premise_free_cache",
+    "dev_injection_qeyd",
+    "dev_lang_mixed_backup",
+    "dev_multihop_mtls_cache",
+    "dev_normal_rate_limit_free",
+    "dev_normal_xestelik_verqesi",
+    "dev_numeric_sla_pro",
+    "dev_open_incident_s1",
+    "dev_out_of_corpus_ceo",
+    "dev_out_of_corpus_graphql"
+  ],
+  "holdout_ids": [
+    "hold_ambiguous_hesabat",
+    "hold_false_premise_dord_gun",
+    "hold_injection_cedvel",
+    "hold_lang_mixed_password",
+    "hold_multihop_sla_vs_incident",
+    "hold_normal_telim_budcesi",
+    "hold_numeric_xarici_ezamiyyet",
+    "hold_out_of_corpus_gelir"
+  ],
+  "sealed_at": "2026-08-10T08:17:53Z",
+  "sealed_by_commit": "(commit yoxdur)",
+  "coverage_exceptions": []
+}
