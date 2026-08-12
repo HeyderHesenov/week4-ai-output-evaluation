@@ -14,5 +14,13 @@
     "harness_commit": "(commit yoxdur)",
     "case_count": 8,
     "note": "holdout kor yoxlama — v1"
+  },
+  {
+    "run_id": "20260812T095145Z-holdout-baseline",
+    "at": "2026-08-12T09:51:45Z",
+    "variant_id": "baseline",
+    "harness_commit": "d732254feb9153899cc813b18f08ee6191c48916",
+    "case_count": 8,
+    "note": "chunking 500/150 — öncədən qeyd edilmiş proqnozun holdout təsdiqi"
   }
 ]

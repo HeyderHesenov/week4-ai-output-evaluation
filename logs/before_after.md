@@ -163,3 +163,22 @@ gətirə bilməz.
 `SOFT_FLOOR_MARGIN`) və ya çox-sənədli suallar üçün sorğu genişləndirməsi
 sınanmalıdır. Bunlar SUT konfiqurasiyasıdır və ayrıca qiymətləndirmə dövrü
 tələb edir.
+
+> ### ⟶ Bu tövsiyə sınandı və RƏDD EDİLDİ (2026-08-12)
+>
+> Yuxarıdakı abzas tarixi qeyd kimi saxlanılır — o, həmin tarixdəki dəlilə
+> görə düzgün idi. Sonrakı ölçmə onun BİRİNCİ hissəsini rədd etdi.
+>
+> `logs/retrieval_sweep.md`: dörd ox da (`TOP_K`, `RELEVANCE_THRESHOLD`,
+> `SOFT_FLOOR_MARGIN`, `LEXICAL_THRESHOLD`) dev-də sınandı. `TOP_K` və
+> `SOFT_FLOOR_MARGIN` heç bir fərq vermir; qalan ikisi çatışan sənədi yalnız
+> korpusdan kənar qapını uçurmaqla gətirir (sızma 1/2 → 2/2).
+>
+> Səbəb bu sənəddəki izahı dəqiqləşdirir: lazımi chunk astananın altında
+> **qalmır — çəkilir də** (dense 0.335, 3-cü sıra), amma leksik balı 0.173
+> olduğu üçün yumşaq hədd xilası ona heç vaxt şamil olunmur. Doğru, lakin zəif
+> embedding-li sənəd korpusdan kənar səs-küylə eyni bal zolağındadır.
+>
+> Tövsiyənin **ikinci** hissəsi (sorğu genişləndirməsi) sınanmayıb və qüvvədə
+> qalır — chunking və embedding modeli ilə birlikdə. Onlar parametr deyil,
+> dəyişiklikdir; hər biri öz dövrünü tələb edir.

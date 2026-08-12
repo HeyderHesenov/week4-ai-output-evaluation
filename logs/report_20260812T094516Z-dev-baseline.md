@@ -1,40 +1,40 @@
-# Qiymətləndirmə hesabatı — 20260810T082136Z-dev-baseline
+# Qiymətləndirmə hesabatı — 20260812T094516Z-dev-baseline
 
 İki run yalnız BÜTÜN aşağıdakı hash-lər üst-üstə düşəndə müqayisə
 edilə bilər. Fərqli hash = fərqli ölçmə.
 
 | | |
 |---|---|
-| Run | 20260810T082136Z-dev-baseline |
+| Run | 20260812T094516Z-dev-baseline |
 | Bölgü | dev |
 | Variant | Baseline (dəyişiklik yoxdur) (`baseline`) |
-| Başladı / bitdi | 2026-08-10T08:21:36Z → 2026-08-10T08:22:23Z |
+| Başladı / bitdi | 2026-08-12T09:45:16Z → 2026-08-12T09:45:59Z |
 | Case sayı × təkrar | 12 × 1 |
 | Test dəsti sha256 | `587dae5440b1ca98` |
 | Bölgü manifesti sha256 | `b2e3a399a43be04e` |
 | Variant sha256 | `a4ba2d6b7e156daa` |
 | Hakim prompt sha256 | `acefd1a21bfdd0e6` |
-| Konfiq hash | `3fb8ef43317b1810` |
+| Konfiq hash | `ac1f04888017928e` |
 | SUT commit | `19f14c38d619` |
-| Harness commit | `(commit yoxd` |
+| Harness commit | `d732254feb91` |
 
 ## Xülasə
 
-- **Keçid nisbəti:** 10/12 = 83% (95% CI: 55%-95%)
-- **Sərt nisbət** (ölçülə bilməyənlər uğursuz sayılır): 83%
+- **Keçid nisbəti:** 11/12 = 92% (95% CI: 65%-99%)
+- **Sərt nisbət** (ölçülə bilməyənlər uğursuz sayılır): 92%
 
 ## Kateqoriya üzrə
 
 | Kateqoriya | Keçdi | Nisbət | 95% CI | Ölçülməyən |
 |---|---|---|---|---|
-| ambiguous | 1/1 | 100% | 21%-100% | 0 |
+| ambiguous | 0/1 | 0% | 0%-79% | 0 |
 | boundary | 1/1 | 100% | 21%-100% | 0 |
 | false_premise | 1/1 | 100% | 21%-100% | 0 |
 | language_mixed | 1/1 | 100% | 21%-100% | 0 |
-| multi_hop | 0/1 | 0% | 0%-79% | 0 |
+| multi_hop | 1/1 | 100% | 21%-100% | 0 |
 | normal | 2/2 | 100% | 34%-100% | 0 |
 | numeric_precision | 1/1 | 100% | 21%-100% | 0 |
-| open_ended | 0/1 | 0% | 0%-79% | 0 |
+| open_ended | 1/1 | 100% | 21%-100% | 0 |
 | out_of_corpus | 2/2 | 100% | 34%-100% | 0 |
 | prompt_injection | 1/1 | 100% | 21%-100% | 0 |
 
@@ -45,14 +45,12 @@ Prompt-u düzəltmək retrieval qatındakı uğursuzluğa bir bal da qazandırm�
 | Qat | Uğursuzluq |
 |---|---|
 | hakim | 1 |
-| retrieval | 1 |
 
 <details><summary>Kateqoriya üzrə detal</summary>
 
 | Kateqoriya | Say |
 |---|---|
 | judge_low_score | 1 |
-| retrieval_miss | 1 |
 
 </details>
 
@@ -64,17 +62,29 @@ REPEATS=1 — sürüşkənlik ölçülməyib. SUT temperature=0-da belə determi
 
 | Case | Təkrar | Kateqoriya | Qat | Detal |
 |---|---|---|---|---|
-| `dev_multihop_mtls_cache` | 1 | retrieval_miss | retrieval | model imtina etdi, çünki gold mənbə(lər) ona çatmayıb: atlas_api_senedi.md; qəbul edilən: atlas_infra_qeydleri.md (top_score=0.46, astana=0.42). Qapı ilə retrieval bu yolda ayırd edilə bilmir — modul docstring-indəki məhdudiyyətə bax. |
-| `dev_open_incident_s1` | 1 | judge_low_score | hakim | hakim balı 1 < 2 — 15 dəqiqəlik cavab müddəti doğru verilib, lakin blameless təhlil sənədi və beş iş günü şərti buraxılıb. |
+| `dev_ambiguous_limit` | 1 | judge_low_score | hakim | hakim balı 1 < 2 — Cavab yalnız səhifələmə limitini səssizcə seçib, sualın qeyri-müəyyənliyini qeyd etmir və hansı limitə cavab verdiyini açıqlamır. |
+
+## Before / after
+
+- Baseline (`baseline`): 10/12 = 83% (95% CI: 55%-95%)
+- Variant (`baseline`): 11/12 = 92% (95% CI: 65%-99%)
+- ℹ️ Konfiqurasiyada yalnız təmsili fərq (`sut_path`): dəyər başqa formatda yazılıb. `config_hash` buna görə fərqlidir.
+- ⚠️ Run-lardan birində `sut_retrieval` qeydi yoxdur (artefakt bu sahə əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə və eyni retrieval parametrləri ilə ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR.**
+
+Cütlənmiş McNemar testi (eyni case-lər, dəqiq binom):
+
+- +2 / -1 (dəyişməyən: 9), p = 1.000 — əhəmiyyətli DEYİL
+- ⚠️ Fərq statistik əhəmiyyətli DEYİL: bu nümunə ölçüsündə yaxşılaşmanı təsadüfdən ayırmaq mümkün olmadı. «Prompt işlədi» nəticəsi çıxarmaq üçün dəlil kifayət etmir.
+- 1 case variantda GERİLƏYİB — orta rəqəm bunu gizlədir.
 
 ## Xərc
 
 | Model | Provayder | Çağırış | Giriş token | Çıxış token | Keş oxunuşu | USD |
 |---|---|---|---|---|---|---|
-| claude-opus-5 | anthropic | 5 | 2,798 | 504 | 6,228 | $0.0394 |
-| gpt-4o-mini | openai | 11 | 16,719 | 216 | 0 | $0.0026 |
+| claude-opus-5 | anthropic | 5 | 3,175 | 454 | 6,228 | $0.0401 |
+| gpt-4o-mini | openai | 11 | 14,708 | 274 | 0 | $0.0024 |
 
-**Cəmi: $0.0421** (case başına $0.0035)
+**Cəmi: $0.0424** (case başına $0.0035)
 
 > Embedding çağırışları ölçülmür: onlar SUT-un VectorStore-unun içində baş verir və token sayı sarğıya görünmür. Aşağıdakı xərc yalnız sintez/korreksiya/hakim çağırışlarını əhatə edir.
 > ⚠️ Təsdiqlənməmiş qiymətlər: claude-sonnet-5, gpt-4o-mini, text-embedding-3-small. Bu modellərin xərci TƏXMİNİDİR.
@@ -85,23 +95,22 @@ REPEATS=1 — sürüşkənlik ölçülməyib. SUT temperature=0-da belə determi
 
 | Hissə | Cəmi (ms) | Pay |
 |---|---|---|
-| retrieval | 3,620 | 22% |
-| LLM | 12,612 | 78% |
-| overhead | 13 | 0% |
-| **cəmi** | **16,246** | 100% |
+| retrieval | 4,440 | 24% |
+| LLM | 14,078 | 76% |
+| overhead | 14 | 0% |
+| **cəmi** | **18,532** | 100% |
 
 - Bağlanmayan qalıq: 0.0 ms
-- Sorğu başına orta: 1,354 ms; p50 1,365 ms; p95 2,011 ms
+- Sorğu başına orta: 1,544 ms; p50 1,306 ms; p95 3,120 ms
 
 ## Hakim
 
 - Verdikt sayı: 5; xətalı: 0
 - Model: `claude-opus-5`, prompt sha256 `acefd1a21bfdd0e6`
-- İnsan etiketi əhatəsi: 5/9 etiket bu run-da ölçüldü
-- İnsan etiketi ilə razılıq: kappa = -0.00, xam razılıq = 20% (n=5); verbosity ρ = -0.11 (n=5)
-- ⚠️ kappa < 0.60: hakimin qərarı insan qərarı ilə zəif uzlaşır. Hakim-törəmə rəqəmlər ehtiyatla oxunmalıdır.
-- Bu run-da qarşılığı olmayan etiket: hold_ambiguous_hesabat, hold_false_premise_dord_gun, hold_injection_cedvel, hold_multihop_sla_vs_incident (başqa run-a aiddir və ya cavab tapılmadı)
-- Verbosity qərəzi (bal ↔ cavab uzunluğu, Spearman ρ): -0.11 (n=5)
+- İnsan etiketi əhatəsi: 0/9 etiket bu run-da ölçüldü
+- Bu run-a aid etiket yoxdur — kappa hesablanmadı. Etiketlər başqa run-ın cavablarına bağlıdır.
+- Bu run-da qarşılığı olmayan etiket: dev_ambiguous_limit, dev_false_premise_free_cache, dev_lang_mixed_backup, dev_multihop_mtls_cache, dev_open_incident_s1, hold_ambiguous_hesabat, hold_false_premise_dord_gun, hold_injection_cedvel, hold_multihop_sla_vs_incident (başqa run-a aiddir və ya cavab tapılmadı)
+- Verbosity qərəzi (bal ↔ cavab uzunluğu, Spearman ρ): +0.45 (n=5)
 
 ## Bütövlük
 

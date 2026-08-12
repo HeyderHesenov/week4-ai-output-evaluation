@@ -155,26 +155,49 @@ def test_etiket_menbesi_FORMATI_yanlisdirsa_xeta(tmp_path) -> None:
 
 
 def test_LAYIHE_etiket_faylinin_doldurulma_mexanizmi_ISLEYIR(tmp_path) -> None:
-    """Şablonun `# case_id: 0` sətri açılanda HƏQİQƏTƏN `labels`-a düşür.
+    """Şərhdən çıxarılan `# case_id: 0` sətri HƏQİQƏTƏN `labels`-a düşür.
 
     Bu test regressiya üçündür: əvvəlki şablonda bal sətirləri `labels:`
     blokundan kənarda idi və təlimata əməl edən istifadəçi faylı doldursa
     da, `load_human_labels` boş qaytarırdı — kappa səssizcə hesablanmırdı.
+
+    Mexanizm SİNTETİK şablon üzərində yoxlanır: real fayl artıq
+    doldurulub (2026-08-12) və testin onun boş qalmasından asılı olması
+    ölçünün gedişini testə bağlayardı.
+    """
+    template = (
+        "sources:\n"
+        "  dev_a: {run_id: R1, repeat: 1}\n"
+        "\n"
+        "labels:\n"
+        "\n"
+        "  #   SUAL: ...\n"
+        "  # dev_a: 0\n"
+    )
+    path = tmp_path / "template.yaml"
+    path.write_text(template, encoding="utf-8")
+    assert load_human_labels(path) == {}, "şərhdə qalan sətir bal sayılmamalıdır"
+
+    opened = tmp_path / "opened.yaml"
+    opened.write_text(template.replace("  # dev_a: 0", "  dev_a: 2"), encoding="utf-8")
+    assert load_human_labels(opened) == {"dev_a": 2}
+
+
+def test_LAYIHE_doldurulmus_etiketler_menbeleri_ile_uzlasir() -> None:
+    """Real fayl: hər etiketin `sources` qeydi var və bal şkaladadır.
+
+    Bu, doldurulmadan sonrakı yeganə struktur zəmanətidir. Balın DƏYƏRİ
+    burada yoxlanmır — o, müəllifin qərarıdır, testin işi deyil.
     """
     path = PROJECT_ROOT / "data" / "human_labels.yaml"
     sources = load_label_sources(path)
-    assert len(sources) == 9, "şablon 9 case üçündür"
-    assert load_human_labels(path) == {}, "şablon boş göndərilir — ballar müəllifindir"
+    labels = load_human_labels(path)
+    assert len(sources) == 9, "fayl 9 case üçündür"
 
-    # Bir sətri «şərhdən çıxar» və nəticəni yoxla.
-    text = path.read_text(encoding="utf-8")
-    case_id = "dev_open_incident_s1"
-    opened = text.replace(f"  # {case_id}: 0", f"  {case_id}: 2")
-    assert opened != text, "şablonda gözlənilən bal sətri tapılmadı"
-
-    filled = tmp_path / "human_labels.yaml"
-    filled.write_text(opened, encoding="utf-8")
-    assert load_human_labels(filled) == {case_id: 2}
+    orphan = sorted(set(labels) - set(sources))
+    assert not orphan, f"`sources` qeydi olmayan etiket: {orphan}"
+    off_scale = {c: v for c, v in labels.items() if v not in (0, 1, 2, 3)}
+    assert not off_scale, f"şkaladan kənar bal (0-3 gözlənilir): {off_scale}"
 
 
 # --- kömək mətnləri ---------------------------------------------------------

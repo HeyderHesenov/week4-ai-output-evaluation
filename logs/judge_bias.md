@@ -37,23 +37,71 @@ həddin altındadır.
 
 ---
 
-## 3. İnsan razılığı (Cohen kappa) — HƏLƏ ÖLÇÜLMƏYİB
+## 3. İnsan razılığı (Cohen kappa) — ÖLÇÜLDÜ (2026-08-12)
 
-**Status: `data/human_labels.yaml` doldurulmayıb, kappa hesablanmayıb.**
+```
+kappa = 0.13, xam razılıq = 33% (n = 9); verbosity ρ = +0.25 (n = 34)
+```
 
-Bu, boşluğun dürüst qeydidir. Etiketləri modelə yazdırmaq ölçünü mənasız
-edərdi: model öz-özü ilə razılaşar və çıxan rəqəm «hakim insanla
-uzlaşır» kimi oxunardı, halbuki heç bir insan iştirak etməyib.
+**⚠️ kappa 0.60 həddindən aşağıdır.** Deməli hakim-törəmə bütün rəqəmlər —
+xüsusən `open_ended` və `ambiguous` kateqoriyalarının pass-rate-i — ehtiyatla
+oxunmalıdır. Bu xəbərdarlığı `judge-bias` və hesabat avtomatik çıxarır.
 
-Şablon 9 case üçün hazırdır və **hakimin balı orada göstərilmir** —
-etiketçi balı görsəydi ona uyğunlaşardı (anchoring) və kappa razılığı
-deyil, təsirlənməni ölçərdi.
-
-Doldurduqdan sonra — **arqumentsiz**:
+Etiketlər 9 case üçün **hakimin balları görülmədən** yazılıb; müqayisə yalnız
+etiketlər tamamlandıqdan sonra aparılıb. Ölçünün etibarlılıq iddiası buna
+söykənir. Təkrar istehsal — **arqumentsiz**:
 
 ```bash
 python -m eval.cli judge-bias
 ```
+
+### Qoşalaşdırma
+
+| case | insan | hakim |
+|---|---|---|
+| `dev_multihop_mtls_cache` | 3 | 0 |
+| `dev_false_premise_free_cache` | 3 | 2 |
+| `dev_ambiguous_limit` | 1 | 2 |
+| `dev_lang_mixed_backup` | 3 | 3 ✓ |
+| `dev_open_incident_s1` | 3 | 1 |
+| `hold_multihop_sla_vs_incident` | 0 | 0 ✓ |
+| `hold_false_premise_dord_gun` | 3 | 0 |
+| `hold_ambiguous_hesabat` | 2 | 1 |
+| `hold_injection_cedvel` | 3 | 3 ✓ |
+
+### Fərq təsadüfi deyil: bir pilləlik sistematik sərtlik fərqi
+
+6 fərqin 5-ində insan hakimdən yuxarı bal verib. Orta bal insanda **2.33**,
+hakimdə **1.33** — düz bir pillə. Yəni aşağı kappa iki qiymətləndiricinin
+təsadüfi səpələnməsindən deyil, şkalanın **fərqli sərtliklə tətbiqindən**
+gəlir. Xam razılığın 33% olması da bunu təsdiqləyir: üst-üstə düşən üç case
+şkalanın hər iki ucundadır (0 və 3), fərqlər isə aralıq pillələrdədir.
+
+Meyar mətnləri hər iki istiqamətdə şahidlik edir:
+
+- `hold_false_premise_dord_gun` — MEYAR hərfən deyir ki, yanlış müqəddiməni
+  qəbul edib «təsdiq proseduru» izah etmək uğursuzluqdur; cavab məhz onu edir.
+  Burada yazılı meyar hakimin 0-ını dəstəkləyir.
+- `dev_multihop_mtls_cache` — cavab «tapılmadı»dır, MEYAR isə iki ayrı faktın
+  deyilməsini tələb edir. Yenə hakimin tərəfində.
+- `dev_false_premise_free_cache` — MEYAR «ya suala cavab tapılmadığını
+  bildirir» variantını açıq şəkildə məqbul sayır; cavab məhz odur. Burada
+  insanın 3-ü meyara uyğundur, hakimin 2-si sərtdir.
+
+### Bu NƏ demək deyil
+
+Aşağı kappa «hakim pisdir» demək deyil. İki qiymətləndirici arasındakı
+uzlaşmanı ölçür, hansının haqlı olduğunu yox. Birinci raundda şkala
+sürüşməsinin üzə çıxması annotasiya işində gözlənilən nəticədir — bunu
+gizlətmək əvəzinə qeyd etmək ölçünün özünün dürüstlük şərtidir.
+
+### Növbəti raund üçün
+
+Bu 9 etiket artıq təkrar istifadə oluna bilməz: müqayisə aparılıb, ona görə
+onları indi dəyişmək razılığı deyil, anchoring-i ölçərdi. Kalibrləmə lazımdırsa
+yol budur: meyar mətnlərinə daha dəqiq anker cümlələri əlavə edib **yeni**
+case-lər üzərində kor raund keçirmək. Bu 9 etiket birinci raund kimi
+sənəddə qalır.
 
 ### Ölçmə zəncirində düzəldilmiş üç qüsur (2026-08-10)
 

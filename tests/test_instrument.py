@@ -314,3 +314,51 @@ def test_bos_netice_top_score_SIFIR() -> None:
     store.hybrid_search("sual", k=4)
     assert recorder.retrieval_calls[0].top_score == 0.0
     assert recorder.retrieval_calls[0].returned == 0
+
+
+# --- atılan chunk-ların balları qeyd olunur ---------------------------------
+
+
+def test_retrieval_BUTUN_ballari_qeyd_olunur_astanadan_asagilar_da() -> None:
+    """Astanadan aşağı ballar da saxlanmalıdır.
+
+    `SutObservation.chunks` yalnız qəbul edilənləri daşıyır. Atılanların balı
+    itsəydi, «astananı nə qədər endirmək lazımdır?» sualına yalnız yeni
+    (pullu) run ilə cavab vermək olardı.
+    """
+    from eval.instrument import InstrumentedStore
+    from eval.observation import CallRecorder
+
+    class _Chunk:
+        def __init__(self, score: float) -> None:
+            self.score = score
+
+    class _Store:
+        def search(self, query, k):
+            return [_Chunk(0.51), _Chunk(0.19), _Chunk(0.40), _Chunk(0.33)]
+
+    recorder = CallRecorder()
+    store = InstrumentedStore(inner=_Store(), recorder=recorder)
+    store.search("sual", k=4)
+
+    _llm, retrievals = recorder.drain()
+    call = retrievals[0]
+    assert call.scores == (0.51, 0.40, 0.33, 0.19), "azalan sırada olmalıdır"
+    assert call.top_score == 0.51
+    assert call.returned == 4
+
+
+def test_bos_neticede_scores_bosdur_top_score_sifirdir() -> None:
+    from eval.instrument import InstrumentedStore
+    from eval.observation import CallRecorder
+
+    class _Empty:
+        def search(self, query, k):
+            return []
+
+    recorder = CallRecorder()
+    InstrumentedStore(inner=_Empty(), recorder=recorder).search("sual", k=4)
+    _llm, retrievals = recorder.drain()
+    call = retrievals[0]
+    assert call.scores == ()
+    assert call.top_score == 0.0

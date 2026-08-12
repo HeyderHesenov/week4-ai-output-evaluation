@@ -18,7 +18,7 @@ holdout-un bir yoxsa doqquz dəfə işlədildiyini özü görsün.
 
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from .artifacts import RunArtifacts
 from .config import PriceTable
@@ -208,6 +208,16 @@ def _comparison(baseline: RunArtifacts, variant: RunArtifacts) -> str:
         f"- Baseline (`{baseline.manifest.get('variant_id', '?')}`): {base_rate.describe()}",
         f"- Variant (`{variant.manifest.get('variant_id', '?')}`): {var_rate.describe()}",
     ]
+    # KONFİQURASİYA FƏRQİ — sənəd bu qaydanı yazırdı, amma heç nə yoxlamırdı.
+    #
+    # «İki run yalnız bütün hash-lər üst-üstə düşəndə müqayisə edilə bilər»
+    # cümləsi hesabatın başındadır, lakin fərqli `config_hash`-li iki run
+    # SƏSSİZCƏ müqayisə olunurdu. Retrieval override-ları gələndən sonra bu
+    # daha da vacibdir: TOP_K dəyişən run baseline-dan qanuni olaraq fərqlidir
+    # və oxucu bunu görməlidir. Hansı AÇARIN fərqləndiyi də sadalanır, çünki
+    # «hash fərqlidir» tək başına oxucuya nə etməli olduğunu demir.
+    lines += _config_diff_lines(baseline.manifest, variant.manifest)
+
     # Variant run-ı promptu HEÇ dəyişməyibsə, aşağıdakı McNemar iki eyni
     # sistemi müqayisə edir və «əhəmiyyətli deyil» nəticəsi yanıldıcıdır.
     applications = variant.manifest.get("variant_applications")
@@ -235,6 +245,84 @@ def _comparison(baseline: RunArtifacts, variant: RunArtifacts) -> str:
             f"- {result.regressed} case variantda GERİLƏYİB — orta rəqəm bunu gizlədir."
         )
     return "\n".join(lines)
+
+
+# Yalnız TƏMSİLİ fərqi olan açarlar: dəyər başqa yazılır, ölçmə eynidir.
+# `sut_path` mütləq yoldan repo-ya nisbi yola keçdi (2026-08-10 düzəlişi),
+# ona görə ondan ƏVVƏL yazılmış artefaktlar yeni run-larla fərqli hash verir,
+# halbuki sistem eynidir. Bunu «ölçmə fərqlidir» kimi göstərmək yalan olardı;
+# gizlətmək də yalan olardı — ona görə ayrıca sətirdə deyilir.
+_COSMETIC_CONFIG_KEYS = frozenset({"sut_path"})
+
+
+def _diff_keys(base: Mapping[str, Any], var: Mapping[str, Any]) -> list[str]:
+    return sorted(k for k in set(base) | set(var) if base.get(k) != var.get(k))
+
+
+def _detail(base: Mapping[str, Any], var: Mapping[str, Any], keys: list[str]) -> str:
+    return ", ".join(f"`{k}`: {base.get(k, '(yox)')} → {var.get(k, '(yox)')}" for k in keys)
+
+
+def _config_diff_lines(base_manifest: Mapping[str, Any], var_manifest: Mapping[str, Any]) -> list[str]:
+    """Müqayisə edilən iki run-ın konfiqurasiya fərqləri.
+
+    `config_hash`-A GÜVƏNMİR — VƏ BU QƏSDƏNDİR.
+    ---------------------------------------------
+    İlk versiya yalnız hash fərqləndikdə işləyirdi və `config` blokuna
+    baxırdı. Bu, real bir run-da YANLIŞ nəticə verdi: chunking dəyişikliyi
+    (`CHUNK_SIZE=500`) SUT-a env vasitəsilə gedir, framework-un `config`
+    blokuna DÜŞMÜR, ona görə `config_hash` eyni qalır. Hesabat isə
+    «yalnız təmsili fərq, ölçülən sistem eynidir» yazdı — halbuki indeks
+    tamamilə başqa idi.
+
+    Ona görə indi əsl mənbə `sut_retrieval`-dır: o, pipeline-dan GERİ
+    oxunur, yəni SUT-un həqiqətən nə işlətdiyini göstərir və env-dən gələn
+    dəyişikliyi də tutur.
+    """
+    out: list[str] = []
+
+    base_cfg = base_manifest.get("config") or {}
+    var_cfg = var_manifest.get("config") or {}
+    if base_manifest.get("config_hash") != var_manifest.get("config_hash"):
+        differing = _diff_keys(base_cfg, var_cfg)
+        substantive = [k for k in differing if k not in _COSMETIC_CONFIG_KEYS]
+        cosmetic = [k for k in differing if k in _COSMETIC_CONFIG_KEYS]
+        if substantive:
+            out.append(
+                f"- ⚠️ **Konfiqurasiya fərqlidir** ({len(substantive)} açar): "
+                f"{_detail(base_cfg, var_cfg, substantive)}. Aşağıdakı fərq YALNIZ "
+                "variantın deyil, bu dəyişikliklərin də nəticəsi ola bilər."
+            )
+        if cosmetic and not substantive:
+            out.append(
+                f"- ℹ️ Konfiqurasiyada yalnız təmsili fərq "
+                f"({', '.join(f'`{k}`' for k in cosmetic)}): dəyər başqa formatda "
+                "yazılıb. `config_hash` buna görə fərqlidir."
+            )
+        if not differing:
+            out.append(
+                "- ⚠️ `config_hash` fərqlidir, amma `config` blokunda fərq tapılmadı — "
+                "artefakt köhnə sxemlə yazılıb. Müqayisə ehtiyatla oxunmalıdır."
+            )
+
+    # --- SUT-un FAKTİKİ retrieval/indeks kimliyi ---
+    base_sut = base_manifest.get("sut_retrieval")
+    var_sut = var_manifest.get("sut_retrieval")
+    if base_sut is None or var_sut is None:
+        out.append(
+            "- ⚠️ Run-lardan birində `sut_retrieval` qeydi yoxdur (artefakt bu sahə "
+            "əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə və eyni "
+            "retrieval parametrləri ilə ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR.**"
+        )
+    else:
+        differing = _diff_keys(base_sut, var_sut)
+        if differing:
+            out.append(
+                f"- ⚠️ **SUT retrieval/indeks fərqlidir** ({len(differing)} açar): "
+                f"{_detail(base_sut, var_sut, differing)}. Bu, `config_hash`-də "
+                "GÖRÜNMÜR — SUT parametrləri env-dən gəlir."
+            )
+    return out
 
 
 def _cost(run: RunArtifacts, prices: PriceTable) -> str:

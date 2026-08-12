@@ -248,6 +248,11 @@ class Runner:
             "harness_commit": commit,
             "sut_commit": info.commit,
             "sut_chunk_count": info.chunk_count,
+            # SUT-un işlətdiyi FAKTİKİ retrieval parametrləri. `config` bloku
+            # yalnız bizim override-ları göstərir; bu isə pipeline-dan geri
+            # oxunandır, ona görə «override verməmişik, amma SUT nə işlədib?»
+            # sualının cavabı artefaktda qalır.
+            "sut_retrieval": dict(info.retrieval),
             "config_hash": self.settings.config_hash,
             "config": self.settings.public_dict(),
             # --- ölçülmüş çirklənmə riski: iddia yox, rəqəm ---

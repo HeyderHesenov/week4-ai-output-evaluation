@@ -1,0 +1,633 @@
+{
+  "split": "dev",
+  "candidates": [
+    {
+      "top_k": 4,
+      "threshold": 0.42,
+      "soft_floor_margin": 0.14,
+      "lexical_threshold": 0.35,
+      "covered": 7,
+      "total": 8,
+      "out_of_corpus_leaked": 1,
+      "out_of_corpus_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.624,
+            0.555,
+            0.512,
+            0.513
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.59,
+            0.522,
+            0.503,
+            0.511
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "retrieved": 4,
+          "accepted": 1,
+          "scores": [
+            0.489,
+            0.377,
+            0.389,
+            0.337
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.581,
+            0.548,
+            0.45,
+            0.471
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "retrieved": 4,
+          "accepted": 1,
+          "scores": [
+            0.457,
+            0.411,
+            0.335,
+            0.32
+          ],
+          "covered": false,
+          "missing": [
+            "atlas_api_senedi.md"
+          ]
+        },
+        "dev_out_of_corpus_graphql": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.587,
+            0.593,
+            0.619,
+            0.563
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "retrieved": 4,
+          "accepted": 0,
+          "scores": [
+            0.379,
+            0.329,
+            0.288,
+            0.335
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.569,
+            0.449,
+            0.434,
+            0.388
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.464,
+            0.512,
+            0.44,
+            0.442
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.479,
+            0.437,
+            0.406,
+            0.492
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.498,
+            0.491,
+            0.41,
+            0.416
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.452,
+            0.535,
+            0.321,
+            0.307
+          ],
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "top_k": 4,
+      "threshold": 0.42,
+      "soft_floor_margin": 0.14,
+      "lexical_threshold": 0.25,
+      "covered": 7,
+      "total": 8,
+      "out_of_corpus_leaked": 1,
+      "out_of_corpus_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.624,
+            0.555,
+            0.512,
+            0.513
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.59,
+            0.522,
+            0.503,
+            0.511
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "retrieved": 4,
+          "accepted": 1,
+          "scores": [
+            0.489,
+            0.377,
+            0.389,
+            0.337
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.581,
+            0.548,
+            0.45,
+            0.471
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.457,
+            0.411,
+            0.335,
+            0.32
+          ],
+          "covered": false,
+          "missing": [
+            "atlas_api_senedi.md"
+          ]
+        },
+        "dev_out_of_corpus_graphql": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.587,
+            0.593,
+            0.619,
+            0.563
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "retrieved": 4,
+          "accepted": 0,
+          "scores": [
+            0.379,
+            0.329,
+            0.288,
+            0.335
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.569,
+            0.449,
+            0.434,
+            0.388
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.464,
+            0.512,
+            0.44,
+            0.442
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.479,
+            0.437,
+            0.406,
+            0.492
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.498,
+            0.491,
+            0.41,
+            0.416
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.452,
+            0.535,
+            0.321,
+            0.307
+          ],
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "top_k": 4,
+      "threshold": 0.42,
+      "soft_floor_margin": 0.14,
+      "lexical_threshold": 0.17,
+      "covered": 8,
+      "total": 8,
+      "out_of_corpus_leaked": 2,
+      "out_of_corpus_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.624,
+            0.555,
+            0.512,
+            0.513
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.59,
+            0.522,
+            0.503,
+            0.511
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "retrieved": 4,
+          "accepted": 1,
+          "scores": [
+            0.489,
+            0.377,
+            0.389,
+            0.337
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.581,
+            0.548,
+            0.45,
+            0.471
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.457,
+            0.411,
+            0.335,
+            0.32
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.587,
+            0.593,
+            0.619,
+            0.563
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "retrieved": 4,
+          "accepted": 1,
+          "scores": [
+            0.379,
+            0.329,
+            0.288,
+            0.335
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.569,
+            0.449,
+            0.434,
+            0.388
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.464,
+            0.512,
+            0.44,
+            0.442
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.479,
+            0.437,
+            0.406,
+            0.492
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.498,
+            0.491,
+            0.41,
+            0.416
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.452,
+            0.535,
+            0.321,
+            0.307
+          ],
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "top_k": 4,
+      "threshold": 0.42,
+      "soft_floor_margin": 0.14,
+      "lexical_threshold": 0.12,
+      "covered": 8,
+      "total": 8,
+      "out_of_corpus_leaked": 2,
+      "out_of_corpus_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.624,
+            0.555,
+            0.512,
+            0.513
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.59,
+            0.522,
+            0.503,
+            0.511
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.489,
+            0.377,
+            0.389,
+            0.337
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.581,
+            0.548,
+            0.45,
+            0.471
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.457,
+            0.411,
+            0.335,
+            0.32
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.587,
+            0.593,
+            0.619,
+            0.563
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.379,
+            0.329,
+            0.288,
+            0.335
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.569,
+            0.449,
+            0.434,
+            0.388
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "retrieved": 4,
+          "accepted": 4,
+          "scores": [
+            0.464,
+            0.512,
+            0.44,
+            0.442
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "retrieved": 4,
+          "accepted": 3,
+          "scores": [
+            0.479,
+            0.437,
+            0.406,
+            0.492
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.498,
+            0.491,
+            0.41,
+            0.416
+          ],
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "retrieved": 4,
+          "accepted": 2,
+          "scores": [
+            0.452,
+            0.535,
+            0.321,
+            0.307
+          ],
+          "covered": true,
+          "missing": []
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,896 @@
+{
+  "split": "dev",
+  "gate": {
+    "relevance_threshold": 0.42,
+    "soft_floor_margin": 0.1,
+    "lexical_threshold": 0.35
+  },
+  "experiments": [
+    {
+      "name": "baseline (800/200)",
+      "chunk_size": 800,
+      "chunk_overlap": 200,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": false,
+      "index_chunks": 19,
+      "covered": 7,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": false,
+          "missing": [
+            "atlas_api_senedi.md"
+          ]
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "chunking 500/150",
+      "chunk_size": 500,
+      "chunk_overlap": 150,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": false,
+      "index_chunks": 29,
+      "covered": 8,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "chunking 400/120",
+      "chunk_size": 400,
+      "chunk_overlap": 120,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": false,
+      "index_chunks": 35,
+      "covered": 8,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "chunking 300/90",
+      "chunk_size": 300,
+      "chunk_overlap": 90,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": false,
+      "index_chunks": 47,
+      "covered": 8,
+      "total": 8,
+      "leaked": 2,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "chunking 250/60",
+      "chunk_size": 250,
+      "chunk_overlap": 60,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": false,
+      "index_chunks": 54,
+      "covered": 8,
+      "total": 8,
+      "leaked": 2,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "embedding 3-large",
+      "chunk_size": 800,
+      "chunk_overlap": 200,
+      "embedding_model": "text-embedding-3-large",
+      "expand_queries": false,
+      "index_chunks": 19,
+      "covered": 7,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": false,
+          "missing": [
+            "atlas_api_senedi.md"
+          ]
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "3-large + chunking 300/90",
+      "chunk_size": 300,
+      "chunk_overlap": 90,
+      "embedding_model": "text-embedding-3-large",
+      "expand_queries": false,
+      "index_chunks": 47,
+      "covered": 8,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 1,
+          "retrieved": 4,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "sorğu genişləndirmə",
+      "chunk_size": 800,
+      "chunk_overlap": 200,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": true,
+      "index_chunks": 19,
+      "covered": 8,
+      "total": 8,
+      "leaked": 1,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 0,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 2,
+          "covered": true,
+          "missing": []
+        }
+      }
+    },
+    {
+      "name": "genişləndirmə + 300/90",
+      "chunk_size": 300,
+      "chunk_overlap": 90,
+      "embedding_model": "text-embedding-3-small",
+      "expand_queries": true,
+      "index_chunks": 47,
+      "covered": 8,
+      "total": 8,
+      "leaked": 2,
+      "leak_total": 2,
+      "cases": {
+        "dev_normal_xestelik_verqesi": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_normal_rate_limit_free": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_numeric_sla_pro": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_boundary_cache_limit": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_multihop_mtls_cache": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_graphql": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_out_of_corpus_ceo": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        },
+        "dev_false_premise_free_cache": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_ambiguous_limit": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 4,
+          "covered": true,
+          "missing": []
+        },
+        "dev_injection_qeyd": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 5,
+          "covered": true,
+          "missing": []
+        },
+        "dev_lang_mixed_backup": {
+          "queries": 3,
+          "retrieved": 12,
+          "accepted": 3,
+          "covered": true,
+          "missing": []
+        },
+        "dev_open_incident_s1": {
+          "queries": 2,
+          "retrieved": 8,
+          "accepted": 1,
+          "covered": true,
+          "missing": []
+        }
+      }
+    }
+  ]
+}

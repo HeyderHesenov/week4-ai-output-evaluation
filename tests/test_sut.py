@@ -6,6 +6,7 @@ inyeksiyası sayəsində bütün test dəsti həmin asılılıqlar olmadan işl�
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -253,3 +254,81 @@ def test_imtina_cavabi_duz_kocurulur() -> None:
     assert obs.refused is True
     assert obs.reason == "low_relevance"
     assert obs.cited_labels == ()
+
+
+# --- retrieval override-ları (CP7) ------------------------------------------
+
+
+def test_retrieval_override_SUT_settings_load_a_oturulur() -> None:
+    """Override-lar SUT-un MÖVCUD `**overrides` kanalından getməlidir.
+
+    SUT faylı redaktə olunmur — pin edilmiş commit iddiası buna söykənir.
+    Burada `_default_factory` çağırılmır (o, langchain/chroma import edər),
+    ona görə yalnız ötürülən sözlüyün formasını yoxlayırıq: açar adları
+    `rag.config.Settings` sahələri ilə üst-üstə düşməlidir.
+    """
+    sut, _ = build_sut(
+        settings_overrides={
+            "retrieval_top_k": 8,
+            "retrieval_threshold": 0.34,
+        }
+    )
+    assert sut.settings.retrieval_overrides() == {
+        "top_k": 8,
+        "relevance_threshold": 0.34,
+    }
+
+
+def test_preflight_SUT_un_FAKTIKI_retrieval_deyerlerini_yazir() -> None:
+    """Manifestə istədiyimiz deyil, pipeline-ın işlətdiyi dəyər düşür."""
+
+    @dataclass
+    class _SutSettings:
+        top_k: int = 8
+        relevance_threshold: float = 0.34
+        soft_floor_margin: float = 0.10
+        hybrid_retrieval: bool = True
+        chunk_size: int = 500
+        chunk_overlap: int = 150
+        collection_name: str = "documents"
+        persist_dir: Path = Path("/Users/kimse/gizli/yol/chroma_500")
+
+        @property
+        def soft_floor(self) -> float:
+            return max(0.0, self.relevance_threshold - self.soft_floor_margin)
+
+    sut, made = build_sut()
+    sut.preflight()
+    made["pipeline"].settings = _SutSettings()
+    sut._info = None  # keşi sıfırla ki, preflight yenidən oxusun
+
+    info = sut.preflight()
+    assert info.retrieval["top_k"] == 8
+    assert info.retrieval["relevance_threshold"] == 0.34
+    assert info.retrieval["soft_floor"] == 0.24, "törəmə qapı hesablanmalıdır"
+    assert info.retrieval["chunk_size"] == 500, "indeks kimliyi də yazılmalıdır"
+    assert info.retrieval["chunk_overlap"] == 150
+
+
+def test_persist_dir_MUTLEQ_yolu_manifeste_yazilmir() -> None:
+    """`sut_path`-də düzəldilən səhv təkrarlanmamalıdır: mütləq yol
+    manifesti maşından asılı edir və istifadəçi adını repo-ya yazır."""
+
+    @dataclass
+    class _SutSettings:
+        persist_dir: Path = Path("/Users/kimse/gizli/yol/chroma_500")
+
+    sut, made = build_sut()
+    sut.preflight()
+    made["pipeline"].settings = _SutSettings()
+    sut._info = None
+
+    retrieval = sut.preflight().retrieval
+    assert retrieval["persist_dir_name"] == "chroma_500"
+    assert "kimse" not in json.dumps(retrieval), "istifadəçi adı sızmamalıdır"
+
+
+def test_pipeline_settings_DASIMIRSA_uydurulmus_deyer_yazilmir() -> None:
+    """Test ikilisi `settings` daşımaya bilər — o halda sahə BOŞ qalır."""
+    sut, _ = build_sut()
+    assert sut.preflight().retrieval == {}

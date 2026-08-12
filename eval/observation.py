@@ -70,6 +70,14 @@ class RetrievalCall:
     returned: int
     top_score: float
     query_chars: int
+    # ÇƏKİLƏN BÜTÜN chunk-ların balları, azalan sırada.
+    #
+    # NİYƏ LAZIMDIR: `SutObservation.chunks` yalnız astanadan KEÇƏNLƏRİ saxlayır.
+    # Atılanların balı heç yerdə qalmırdı, ona görə «astananı nə qədər endirsək
+    # çatışmayan sənəd kontekstə düşərdi?» sualına yalnız yeni (pullu) run ilə
+    # cavab vermək olurdu. Bu sahə həmin sualı SAXLANMIŞ artefaktdan
+    # cavablandırır. Mətn saxlanmır — yalnız rəqəmlər.
+    scores: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)

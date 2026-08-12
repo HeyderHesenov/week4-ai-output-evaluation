@@ -37,9 +37,9 @@ from __future__ import annotations
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from .config import Settings
 from .dataset import EvalCase
@@ -60,6 +60,10 @@ class SutInfo:
     commit: str
     chunk_count: int
     sut_path: str
+    # SUT-un HƏQİQƏTƏN işlətdiyi retrieval dəyərləri — istədiyimiz deyil,
+    # qurulmuş pipeline-dan geri oxunanı. Fərq ola bilər (SUT `validate()`
+    # edir), və manifestə düşməli olan faktiki dəyərdir.
+    retrieval: Mapping[str, Any] = field(default_factory=dict)
 
 
 def read_git_commit(path: Path) -> str:
@@ -162,7 +166,12 @@ class RagSut:
                 f"Həlli: cd {path} && python -m rag.cli ingest --path data/"
             )
 
-        self._info = SutInfo(commit=actual, chunk_count=count, sut_path=str(path))
+        self._info = SutInfo(
+            commit=actual,
+            chunk_count=count,
+            sut_path=str(path),
+            retrieval=_effective_retrieval(pipeline),
+        )
         return self._info
 
     # -- müşahidə ----------------------------------------------------------
@@ -288,17 +297,61 @@ class RagSut:
         # AÇIQ override: SUT öz `.env`-ini oxuyur və biz onun nəyi oxuduğunu
         # təxmin etmək istəmirik. Manifestə yazdığımız model adı ilə həqiqətən
         # işlədilən model arasında fərq qalmamalıdır.
+        # Retrieval override-ları eyni AÇIQ kanaldan gedir. Təyin olunmayan
+        # parametr sözlükdə YOXDUR, yəni SUT öz dəyərini saxlayır.
         sut_settings = SutSettings.load(
             openai_api_key=self.settings.require_openai_key(),
             llm_model=self.settings.generator_model,
             embedding_model=self.settings.embedding_model,
             grounding_mode=self.settings.grounding_mode,
+            **self.settings.retrieval_overrides(),
         )
         return RagPipeline(
             sut_settings,
             store=wrap_store(VectorStore(sut_settings)),
             llm=wrap_llm(build_llm(sut_settings)),
         )
+
+
+def _effective_retrieval(pipeline: Any) -> dict[str, Any]:
+    """Qurulmuş pipeline-dan faktiki retrieval dəyərlərini geri oxuyur.
+
+    `getattr` müdafiəsi test saxtakarları üçündür: testlərdəki pipeline
+    `settings` daşımır və daşımalı da deyil — o halda boş sözlük qayıdır və
+    manifestdə sahə sadəcə görünmür (uydurulmuş dəyər yazılmır).
+    """
+    sut_settings = getattr(pipeline, "settings", None)
+    if sut_settings is None:
+        return {}
+    out: dict[str, Any] = {}
+    for name in (
+        "top_k",
+        "relevance_threshold",
+        "soft_floor_margin",
+        "lexical_threshold",
+        "hybrid_retrieval",
+        # İNDEKS KİMLİYİ. Chunking dəyişikliyi qapıya toxunmur, amma ölçülən
+        # sistemi dəyişir: fərqli chunk-lanmış indeks fərqli mətn qaytarır.
+        # Bunlar artefaktda olmasa, «hansı indeksdə ölçüldü?» sualının cavabı
+        # yalnız işlədən adamın yaddaşında qalardı.
+        "chunk_size",
+        "chunk_overlap",
+        "collection_name",
+    ):
+        value = getattr(sut_settings, name, None)
+        if value is not None:
+            out[name] = value
+    # `persist_dir` MÜTLƏQ yoldur — manifestə maşından asılı yol yazmaq
+    # `sut_path`-də düzəldilən səhvin təkrarı olardı. Yalnız adı saxlanılır.
+    persist_dir = getattr(sut_settings, "persist_dir", None)
+    if persist_dir is not None:
+        out["persist_dir_name"] = Path(str(persist_dir)).name
+    # `soft_floor` törəmə dəyərdir (astana − marja, 0-da kəsilir). Onu ayrıca
+    # yazırıq, çünki hesabatı oxuyan adam üçün əsl qapı BUDUR.
+    soft_floor = getattr(sut_settings, "soft_floor", None)
+    if soft_floor is not None:
+        out["soft_floor"] = round(float(soft_floor), 4)
+    return out
 
 
 def _to_chunk_view(chunk: Any) -> ChunkView:

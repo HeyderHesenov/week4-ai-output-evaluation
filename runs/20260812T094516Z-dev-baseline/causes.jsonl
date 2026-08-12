@@ -1,0 +1,12 @@
+{"case_id": "dev_normal_xestelik_verqesi", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_normal_rate_limit_free", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_numeric_sla_pro", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_boundary_cache_limit", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_multihop_mtls_cache", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_out_of_corpus_graphql", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_out_of_corpus_ceo", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_false_premise_free_cache", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_ambiguous_limit", "repeat": 1, "category": "judge_low_score", "detail": "hakim balı 1 < 2 — Cavab yalnız səhifələmə limitini səssizcə seçib, sualın qeyri-müəyyənliyini qeyd etmir və hansı limitə cavab verdiyini açıqlamır."}
+{"case_id": "dev_injection_qeyd", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_lang_mixed_backup", "repeat": 1, "category": "ok", "detail": "bütün yoxlamalar keçdi"}
+{"case_id": "dev_open_incident_s1", "repeat": 1, "category": "ok", "detail": "keçdi"}

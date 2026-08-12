@@ -182,6 +182,32 @@ def _env_float(name: str, default: float) -> float:
         raise ConfigError(f"{name} ədəd olmalıdır, '{raw}' verilib.") from None
 
 
+def _env_opt_int(name: str) -> int | None:
+    """Təyin olunmayıbsa `None` — «SUT-un öz defaultu qalsın» deməkdir.
+
+    Burada default rəqəm qoymaq olmazdı: 4 yazsaydıq, SUT-un defaultu
+    gələcəkdə dəyişəndə biz onu səssizcə 4-də dondurardıq və bunu heç bir
+    manifest göstərməzdi.
+    """
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        raise ConfigError(f"{name} tam ədəd olmalıdır, '{raw}' verilib.") from None
+
+
+def _env_opt_float(name: str) -> float | None:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        raise ConfigError(f"{name} ədəd olmalıdır, '{raw}' verilib.") from None
+
+
 def _resolve(path_like: str) -> Path:
     """Nisbi yolu layihə kökünə görə həll edir."""
     p = Path(path_like).expanduser()
@@ -220,6 +246,16 @@ class Settings:
 
     repeats: int
 
+    # --- Retrieval override-ları (CP7) ---------------------------------------
+    # `None` = SUT-un öz dəyəri qalır. Bunlar SUT konfiqurasiyasıdır, prompt
+    # deyil: `eval/variants.py` mesaj səviyyəsində işləyir və retrieval qatına
+    # çata bilmir. SUT faylı YENƏ DƏ redaktə olunmur — `rag.config.Settings.load`
+    # onsuz da `**overrides` qəbul edir, biz həmin mövcud giriş nöqtəsindən
+    # istifadə edirik, ona görə pin edilmiş commit iddiası pozulmur.
+    retrieval_top_k: int | None = None
+    retrieval_threshold: float | None = None
+    retrieval_soft_floor_margin: float | None = None
+
     @classmethod
     def load(cls, **overrides: Any) -> "Settings":
         base = cls(
@@ -247,6 +283,9 @@ class Settings:
             runs_dir=_resolve(_env_str("RUNS_DIR", "runs")),
             logs_dir=_resolve(_env_str("LOGS_DIR", "logs")),
             repeats=_env_int("REPEATS", 1),
+            retrieval_top_k=_env_opt_int("RETRIEVAL_TOP_K"),
+            retrieval_threshold=_env_opt_float("RETRIEVAL_THRESHOLD"),
+            retrieval_soft_floor_margin=_env_opt_float("RETRIEVAL_SOFT_FLOOR_MARGIN"),
         )
         settings = base if not overrides else _replace(base, **overrides)
         settings.validate()
@@ -304,6 +343,32 @@ class Settings:
             raise ConfigError("REPEATS ən azı 1 olmalıdır.")
         if self.judge_max_retries < 0:
             raise ConfigError("JUDGE_MAX_RETRIES mənfi ola bilməz.")
+        if self.retrieval_top_k is not None and self.retrieval_top_k <= 0:
+            raise ConfigError("RETRIEVAL_TOP_K müsbət olmalıdır.")
+        # Astana KOSİNUS OXŞARLIĞI şkalasındadır (0-1), məsafə deyil. Səhv
+        # şkalada verilmiş rəqəm (məsələn 1.8) SUT-da səssizcə «heç nə keçmir»
+        # davranışına çevrilir və bütün case-lər imtina ilə bitər — bunu run
+        # bitdikdən sonra pass-rate düşməsi kimi oxumaq asan səhvdir.
+        if self.retrieval_threshold is not None and not 0.0 <= self.retrieval_threshold <= 1.0:
+            raise ConfigError(
+                f"RETRIEVAL_THRESHOLD kosinus oxşarlığı şkalasındadır (0-1), "
+                f"verilib: {self.retrieval_threshold}."
+            )
+        if self.retrieval_soft_floor_margin is not None and self.retrieval_soft_floor_margin < 0:
+            raise ConfigError("RETRIEVAL_SOFT_FLOOR_MARGIN mənfi ola bilməz.")
+
+    def retrieval_overrides(self) -> dict[str, Any]:
+        """`rag.config.Settings.load(**overrides)`-a ötürüləcək sahələr.
+
+        Təyin olunmayan parametr sözlüyə DÜŞMÜR — belədə SUT öz dəyərini
+        işlədir və biz onu təxmin etmirik.
+        """
+        pairs = (
+            ("top_k", self.retrieval_top_k),
+            ("relevance_threshold", self.retrieval_threshold),
+            ("soft_floor_margin", self.retrieval_soft_floor_margin),
+        )
+        return {name: value for name, value in pairs if value is not None}
 
     def require_openai_key(self) -> str:
         return _require_key(
@@ -349,6 +414,15 @@ class Settings:
             "judge_pass_threshold": self.judge_pass_threshold,
             "judge_fallback_model": self.judge_fallback_model,
             "repeats": self.repeats,
+            # RETRIEVAL OVERRIDE-LARI YALNIZ TƏYİN OLUNANDA DÜŞÜR.
+            #
+            # Bu, yuxarıdakı «sahələri açıq sadala» qaydasının pozulması deyil:
+            # təyin olunmamış parametr konfiqurasiyanın bir hissəsi DEYİL, onun
+            # dəyəri `sut_commit`-in içindədir və o commit onsuz da hash-dədir.
+            # Sabit `None` yazsaydıq, hash bütün KÖHNƏ run-lar üçün dəyişərdi və
+            # 2026-08-10 baseline-ı ilə hər müqayisə yalandan «konfiqurasiya
+            # fərqlidir» xəbərdarlığı verərdi — halbuki heç nə dəyişməyib.
+            **{f"retrieval_{k}": v for k, v in sorted(self.retrieval_overrides().items())},
         }
 
     @property

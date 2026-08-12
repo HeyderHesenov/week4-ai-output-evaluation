@@ -135,3 +135,68 @@ def test_tesdiqlenmemis_modeller_SADALANIR(settings: Settings) -> None:
     table = load_prices(settings.prices_path)
     assert "gpt-4o-mini" in table.unverified
     assert "claude-opus-5" not in table.unverified
+
+
+# --- retrieval override-ları (CP7) -----------------------------------------
+
+
+def test_retrieval_override_TEYIN_OLUNMAYIB_deyilse_sozlukde_yoxdur() -> None:
+    """Boş override = «SUT öz dəyərini işlətsin», uydurulmuş rəqəm deyil."""
+    assert make_settings().retrieval_overrides() == {}
+
+
+def test_retrieval_override_SUT_sahe_adlarina_cevrilir() -> None:
+    """Açar adları `rag.config.Settings` sahələri ilə ÜST-ÜSTƏ düşməlidir.
+
+    Səhv ad `replace()`-də TypeError verər — amma yalnız canlı run zamanı,
+    yəni açar yoxlanıb pul xərclənməyə başlayandan sonra.
+    """
+    s = make_settings(
+        retrieval_top_k=6,
+        retrieval_threshold=0.35,
+        retrieval_soft_floor_margin=0.15,
+    )
+    assert s.retrieval_overrides() == {
+        "top_k": 6,
+        "relevance_threshold": 0.35,
+        "soft_floor_margin": 0.15,
+    }
+
+
+def test_retrieval_override_QISMEN_verile_biler() -> None:
+    s = make_settings(retrieval_top_k=8)
+    assert s.retrieval_overrides() == {"top_k": 8}
+
+
+def test_retrieval_override_YOXDURSA_config_hash_DEYISMIR() -> None:
+    """Sxem genişləndi, amma köhnə run-larla müqayisə pozulmamalıdır.
+
+    Retrieval açarları sabit `None` kimi `public_dict()`-ə düşsəydi, hash
+    BÜTÜN köhnə run-lar üçün dəyişər və hər müqayisə yalandan
+    «konfiqurasiya fərqlidir» deyərdi.
+    """
+    payload = make_settings().public_dict()
+    assert not [k for k in payload if k.startswith("retrieval_")]
+
+
+def test_retrieval_override_VERILENDE_config_hash_deyisir() -> None:
+    base = make_settings()
+    tuned = make_settings(retrieval_threshold=0.30)
+    assert tuned.config_hash != base.config_hash
+    assert tuned.public_dict()["retrieval_relevance_threshold"] == 0.30
+
+
+def test_retrieval_threshold_MESAFE_skalasinda_verilse_reddedilir() -> None:
+    """0-1 kosinus şkalası. 1.8 kimi rəqəm SUT-da «heç nə keçmir» olur."""
+    with pytest.raises(ConfigError, match="kosinus"):
+        make_settings(retrieval_threshold=1.8)
+
+
+def test_retrieval_top_k_SIFIR_reddedilir() -> None:
+    with pytest.raises(ConfigError, match="RETRIEVAL_TOP_K"):
+        make_settings(retrieval_top_k=0)
+
+
+def test_retrieval_soft_floor_margin_MENFI_reddedilir() -> None:
+    with pytest.raises(ConfigError, match="SOFT_FLOOR_MARGIN"):
+        make_settings(retrieval_soft_floor_margin=-0.05)

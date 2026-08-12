@@ -255,3 +255,104 @@ def test_surusen_case_ler_XEBERDARLIQ_kimi_cixir(dataset, prices) -> None:
 
     assert "Sürüşən case-lər" in text
     assert "dev_a" in text
+
+
+# --- konfiqurasiya fərqi müqayisədə görünür ---------------------------------
+
+
+def _cfg_diff(base_cfg, var_cfg, base_sut=None, var_sut=None):
+    """`sut_retrieval` default olaraq EYNİ verilir ki, test yalnız `config`
+    fərqini ölçsün — əks halda hər testə indeks xəbərdarlığı qarışardı."""
+    from eval.report import _config_diff_lines
+
+    same = {"top_k": 4, "chunk_size": 800}
+    return _config_diff_lines(
+        {"config_hash": "aaa", "config": base_cfg, "sut_retrieval": base_sut or same},
+        {"config_hash": "bbb", "config": var_cfg, "sut_retrieval": var_sut or same},
+    )
+
+
+def test_eyni_hash_ve_eyni_indeks_ise_XEBERDARLIQ_yoxdur() -> None:
+    from eval.report import _config_diff_lines
+
+    same = {
+        "config_hash": "aaa",
+        "config": {"repeats": 1},
+        "sut_retrieval": {"top_k": 4, "chunk_size": 800},
+    }
+    assert _config_diff_lines(same, same) == []
+
+
+def test_CHUNKING_ferqi_config_hash_eyni_olsa_da_tutulur() -> None:
+    """Bu testin səbəbi real bir yanlış hesabatdır (2026-08-12).
+
+    `CHUNK_SIZE=500` SUT-a env ilə gedir, framework `config`-una düşmür,
+    ona görə `config_hash` EYNİ qalır. Əvvəlki versiya bu halda «ölçülən
+    sistem eynidir» yazırdı — halbuki indeks tamam başqa idi.
+    """
+    from eval.report import _config_diff_lines
+
+    base = {
+        "config_hash": "eyni",
+        "config": {"repeats": 1},
+        "sut_retrieval": {"chunk_size": 800, "persist_dir_name": "chroma"},
+    }
+    var = {
+        "config_hash": "eyni",
+        "config": {"repeats": 1},
+        "sut_retrieval": {"chunk_size": 500, "persist_dir_name": "chroma_c500"},
+    }
+    lines = _config_diff_lines(base, var)
+    assert len(lines) == 1
+    assert "SUT retrieval/indeks fərqlidir" in lines[0]
+    assert "800 → 500" in lines[0]
+
+
+def test_sut_retrieval_qeydi_YOXDURSA_tesdiqlene_bilmir_deyilir() -> None:
+    """Köhnə artefaktla müqayisə «eynidir» kimi göstərilməməlidir."""
+    from eval.report import _config_diff_lines
+
+    base = {"config_hash": "aaa", "config": {}}  # sut_retrieval yoxdur
+    var = {"config_hash": "aaa", "config": {}, "sut_retrieval": {"chunk_size": 500}}
+    lines = _config_diff_lines(base, var)
+    assert len(lines) == 1
+    assert "TƏSDİQLƏNƏ BİLMİR" in lines[0]
+
+
+def test_retrieval_ferqi_MUQAYISEDE_acik_gosterilir() -> None:
+    """Bu, retrieval dövrünün əsas mühafizəsidir.
+
+    TOP_K dəyişmiş run baseline-dan qanuni olaraq fərqlidir; oxucu fərqin
+    variantdan yox, konfiqurasiyadan gəldiyini görməlidir.
+    """
+    lines = _cfg_diff({"repeats": 1}, {"repeats": 1, "retrieval_top_k": 8})
+    assert len(lines) == 1
+    assert "Konfiqurasiya fərqlidir" in lines[0]
+    assert "retrieval_top_k" in lines[0]
+    assert "→ 8" in lines[0]
+
+
+def test_YALNIZ_temsili_ferq_olcme_ferqi_kimi_gosterilmir() -> None:
+    """`sut_path` mütləq→nisbi keçidi ölçməni dəyişmir; yalan həyəcan olmasın."""
+    lines = _cfg_diff({"sut_path": "/abs/vendor/sut"}, {"sut_path": "vendor/sut"})
+    assert len(lines) == 1
+    assert "təmsili" in lines[0]
+    assert "Konfiqurasiya fərqlidir" not in lines[0]
+
+
+def test_esasli_ferq_varsa_TEMSILI_qeyd_susdurulur() -> None:
+    """Əsaslı fərq varsa, `config_hash`-in niyə fərqləndiyi onsuz da izah
+    olunub — təmsili qeydi də çap etmək oxucunu yayındırır."""
+    lines = _cfg_diff(
+        {"sut_path": "/abs/vendor/sut", "repeats": 1},
+        {"sut_path": "vendor/sut", "repeats": 3},
+    )
+    assert len(lines) == 1
+    assert "Konfiqurasiya fərqlidir" in lines[0] and "repeats" in lines[0]
+    assert "təmsili" not in lines[0]
+
+
+def test_hash_ferqli_amma_config_boshdursa_KOHNE_SXEM_deyilir() -> None:
+    lines = _cfg_diff({}, {})
+    assert len(lines) == 1
+    assert "köhnə sxemlə" in lines[0]

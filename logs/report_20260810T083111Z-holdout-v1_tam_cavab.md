@@ -95,7 +95,7 @@ Cütlənmiş McNemar testi (eyni case-lər, dəqiq binom):
 **Cəmi: $0.0906** (case başına $0.0113)
 
 > Embedding çağırışları ölçülmür: onlar SUT-un VectorStore-unun içində baş verir və token sayı sarğıya görünmür. Aşağıdakı xərc yalnız sintez/korreksiya/hakim çağırışlarını əhatə edir.
-> ⚠️ Təsdiqlənməmiş qiymətlər: gpt-4o-mini, text-embedding-3-small. Bu modellərin xərci TƏXMİNİDİR.
+> ⚠️ Təsdiqlənməmiş qiymətlər: claude-sonnet-5, gpt-4o-mini, text-embedding-3-small. Bu modellərin xərci TƏXMİNİDİR.
 
 ## Gecikmə
 
@@ -115,7 +115,9 @@ Cütlənmiş McNemar testi (eyni case-lər, dəqiq binom):
 
 - Verdikt sayı: 12; xətalı: 0
 - Model: `claude-opus-5`, prompt sha256 `acefd1a21bfdd0e6`
-- İnsan etiketi verilməyib — kappa hesablanmadı (`data/human_labels.yaml` doldurun).
+- İnsan etiketi əhatəsi: 0/9 etiket bu run-da ölçüldü
+- Bu run-a aid etiket yoxdur — kappa hesablanmadı. Etiketlər başqa run-ın cavablarına bağlıdır.
+- Bu run-da qarşılığı olmayan etiket: dev_ambiguous_limit, dev_false_premise_free_cache, dev_lang_mixed_backup, dev_multihop_mtls_cache, dev_open_incident_s1, hold_ambiguous_hesabat, hold_false_premise_dord_gun, hold_injection_cedvel, hold_multihop_sla_vs_incident (başqa run-a aiddir və ya cavab tapılmadı)
 - Verbosity qərəzi (bal ↔ cavab uzunluğu, Spearman ρ): +0.54 (n=12)
 - ⚠️ Güclü müsbət korrelyasiya: hakim uzun cavaba yüksək bal verməyə meyllidir, yəni bal qismən sözçülüyü ölçür.
 

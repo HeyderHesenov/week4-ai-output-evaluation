@@ -255,14 +255,16 @@ class InstrumentedStore:
         started = time.perf_counter()
         chunks = func(query, k=k)
         latency_ms = (time.perf_counter() - started) * 1000.0
+        scores = tuple(sorted((float(c.score) for c in chunks), reverse=True))
         self.recorder.record_retrieval(
             RetrievalCall(
                 mode=mode,
                 k=k,
                 latency_ms=latency_ms,
                 returned=len(chunks),
-                top_score=max((float(c.score) for c in chunks), default=0.0),
+                top_score=scores[0] if scores else 0.0,
                 query_chars=len(query),
+                scores=scores,
             )
         )
         return chunks
