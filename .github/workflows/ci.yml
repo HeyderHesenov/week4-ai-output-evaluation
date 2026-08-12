@@ -33,6 +33,16 @@ jobs:
       - name: CLI köməyi işləyir
         run: python -m eval.cli --help
 
+      # `tools/` CI-də HEÇ VAXT import edilmirdi: `pytest.ini`-də
+      # `testpaths = tests` olduğu üçün sintaksis səhvi və ya `eval.config`-da
+      # adı dəyişən simvol yaşıl keçirdi. `--help` bunu iki saniyəyə tutur —
+      # hər iki alətdə `rag.*` import-ları funksiya daxilindədir, ona görə
+      # burada langchain/chroma tələb olunmur.
+      - name: Ölçmə alətləri import olunur
+        run: |
+          python tools/retrieval_sweep.py --help
+          python tools/retrieval_experiments.py --help
+
       # ÜÇ dizayn qərarı, hər biri real yalan-nəticəni bağlayır:
       #
       # 1. Nümunə açarın FORMASINI axtarır (prefiks + uzun təsadüfi quyruq),

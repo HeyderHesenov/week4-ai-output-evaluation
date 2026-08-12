@@ -104,3 +104,103 @@ Rəqəmlər problemi retrieval parametrindən **kənara** yönəldir:
 python tools/retrieval_sweep.py --top-k 4 6 8 --threshold 0.42 0.38 0.34 0.30
 python tools/retrieval_sweep.py --lexical 0.35 0.25 0.17 0.12 --margin 0.14
 ```
+
+---
+
+# ⟶ RETRAKSİYA (2026-08-12): yuxarıdakı cədvəlin sübutu natamamdır
+
+Yuxarıdakı mətn **silinmir** — README qaydası açıqdır: *«Ölçmə qeydi geriyə
+dönük redaktə olunmur»*. Geri götürülən hissə burada, sərhədi ilə birlikdə
+göstərilir.
+
+## Nə pozulub
+
+Sweep üç dəfə ardıcıl işlədilib və hər üçü **eyni** default `--out` faylına
+(`logs/retrieval_sweep.json`) yazıb. Sonuncu icra əvvəlkiləri əvəzləyib.
+Diskdə qalan artefaktda cəmi **4 namizəd** var — hamısı
+`top_k=4, astana=0.42, marja=0.14`, yalnız leksik astana dəyişir.
+
+Nəticədə «Nəticə: dörd oxun heç biri işləmir» cədvəlinin dörd sətrindən
+**yalnız `LEXICAL_THRESHOLD` sətri** artefaktla dəstəklənir:
+
+| ox | artefaktda varmı |
+|---|---|
+| `TOP_K` (4, 6, 8) | **YOX** — JSON-da `top_k ≠ 4` namizəd yoxdur |
+| `RELEVANCE_THRESHOLD` (0.42 → 0.30) | **YOX** — `astana ≠ 0.42` namizəd yoxdur |
+| `SOFT_FLOOR_MARGIN` (0.10 → 0.26) | **YOX** — sənəddəki iki əmrin heç biri marjanı sweep etmir |
+| `LEXICAL_THRESHOLD` | bəli |
+
+«Təkrar istehsal» blokundakı iki əmr də geri götürülür: onlar sənəddəki
+cədvəli **istehsal etmir**. Faktiki olaraq üç əmr işlədilib, sənəddə isə iki
+yazılıb, üstəlik ikincisi `--margin 0.14` pinləyir.
+
+Bundan başqa, `dev_multihop_mtls_cache` chunk cədvəlinin üstündəki «yumşaq
+hədd 0.32» **səhvdir**: artefakt marja 0.14 ilə, yəni yumşaq hədd **0.28**
+ilə istehsal olunub. Chunk balları (0.457 / 0.411 / 0.335 / 0.320) artefaktla
+üst-üstə düşür, yalnız qapı dəyəri səhv yazılıb.
+
+## Nə pozulmayıb
+
+Səhv qapı dəyəri tapıntını **dəyişmir** və bunu açıq demək lazımdır: yumşaq
+hədd xilası `leksik ≥ 0.35` tələb edir, həmin chunk-ın leksik balı isə
+**0.173**-dür. Yəni xilas nə 0.28-də, nə 0.32-də işə düşür — marja oxunun
+ölü olmasının səbəbi elə budur.
+
+## Düzəliş
+
+`tools/retrieval_sweep.py` artıq sabit fayla yazmır: hər icra öz
+`logs/probes/<probe_id>/` qovluğunu alır, mövcud qovluğun üstünə yazmır,
+argv-ni və vaxtı manifestə qeyd edir, cədvəli isə `summary.md`-də özü
+generasiya edir. `tests/test_logs_iddialari.py` sənəddəki hər cədvəlin
+artefaktda mövcudluğunu yoxlayır.
+
+Köhnə `logs/retrieval_sweep.json` **silinmir və dəyişdirilmir** — o, nəyin
+həqiqətən işlədildiyinin qeydidir. Əhatəsi: yalnız leksik ox,
+`top_k=4, astana=0.42, marja=0.14`.
+
+Yenidən ölçmənin nəticəsi aşağıdakı bölmədədir.
+
+---
+
+# YENİDƏN ÖLÇÜLDÜ (2026-08-12) — nəticə TƏSDİQLƏNDİ, indi sübutu var
+
+Dörd ox **bir çağırışda** ölçüldü ki, sətirlər bir-biri ilə müqayisə oluna
+bilsin: 3 × 3 × 3 × 2 = **54 namizəd**, hamısı tək artefaktda.
+
+<!-- artefakt: 20260812T111026Z-sweep-top_k+threshold+soft_floor_margin+lexical_threshold -->
+
+| TOP_K | astana | marja | leksik | örtük | sızma |
+|---|---|---|---|---|---|
+| 4 | 0.42 | 0.10 | 0.35 | 7/8 | 1/2 |
+| 6 | 0.42 | 0.10 | 0.35 | 7/8 | 1/2 |
+| 8 | 0.42 | 0.10 | 0.35 | 7/8 | 1/2 |
+| 4 | 0.42 | 0.18 | 0.35 | 7/8 | 1/2 |
+| 4 | 0.42 | 0.26 | 0.35 | 7/8 | 1/2 |
+| 4 | 0.34 | 0.10 | 0.35 | 7/8 | 2/2 |
+| 4 | 0.30 | 0.10 | 0.35 | 8/8 | 2/2 |
+| 4 | 0.42 | 0.10 | 0.17 | 8/8 | 2/2 |
+
+<!-- /artefakt -->
+
+Yuxarıdakı sətirlər baseline qapısını saxlayıb hər dəfə **bir** oxu dəyişir.
+Tam 54 sətirlik cədvəl `logs/probes/20260812T111026Z-sweep-top_k+threshold+soft_floor_margin+lexical_threshold/summary.md`-dədir.
+
+## Nəticə əvvəlkindən daha güclüdür
+
+**54 namizəddən 36-sı örtüyü tamamlayır (8/8). Onların SIFIRI sızmanı
+baseline səviyyəsində (1/2) saxlayır.** Əvvəlki dörd sətirlik cədvəl bunu
+iddia edirdi; indi 54 namizəd üzərində ölçülüb və artefaktda yoxlana bilər.
+
+Ox üzrə:
+
+- **TOP_K** — 4, 6, 8 üçün nəticə hərfi-hərfinə eynidir. Lazımi chunk onsuz
+  da çəkilir; problem sıralamada deyil, qapıdadır.
+- **SOFT_FLOOR_MARGIN** — 0.10 / 0.18 / 0.26 üçün nəticə eynidir. Yumşaq hədd
+  xilası leksik ≥ 0.35 tələb edir, həmin chunk-ın leksik balı isə 0.173-dür;
+  marja nə qədər böyüsə də xilas yolu açılmır.
+- **RELEVANCE_THRESHOLD** — 0.34-də örtük hələ 7/8-dir, amma sızma artıq 2/2
+  olur; 0.30-da örtük tamamlanır, sızma yenə 2/2.
+- **LEXICAL_THRESHOLD** — 0.17-də örtük tamamlanır, sızma 2/2.
+
+Yəni hipotez yenə rədd edilir, amma bu dəfə sənəddəki hər sətir artefaktda
+var. Çıxarılan nəticə dəyişmir: chunking istiqaməti doğru seçilib.

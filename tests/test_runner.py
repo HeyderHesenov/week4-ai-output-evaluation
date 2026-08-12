@@ -35,7 +35,13 @@ class FakeSut:
         self.preflights += 1
         if self.preflight_error is not None:
             raise self.preflight_error
-        return SutInfo(commit="a" * 40, chunk_count=12, sut_path="/fake")
+        return SutInfo(
+            commit="a" * 40,
+            chunk_count=12,
+            sut_path="/fake",
+            retrieval={"top_k": 4, "chunk_size": 500},
+            index={"sha256": "barmaq-izi", "id_count": 12},
+        )
 
     def observe(self, case, *, repeat: int = 1):
         self.calls.append((case.id, repeat))
@@ -199,6 +205,22 @@ def test_manifest_BUTUN_kimlikleri_dasiyir(tmp_path) -> None:
     assert len(manifest["judge_prompt_sha256"]) == 64
     assert manifest["config_hash"]
     assert manifest["max_holdout_similarity"] == 0.0
+    # NİYYƏT VƏ SÜBUT — ikisi də manifestə düşməlidir.
+    #
+    # Bu iki assert-in yoxluğu real boşluq idi: `eval/runner.py`-dən
+    # `sut_retrieval` sətrini silmək bütün test dəstini yaşıl saxlayırdı və
+    # hesabat həmişəlik «təsdiqlənə bilmir» yazırdı — bu isə qanuni köhnə
+    # artefakt mesajı kimi oxunurdu.
+    assert manifest["sut_retrieval"] == {"top_k": 4, "chunk_size": 500}
+    assert manifest["sut_index"]["sha256"] == "barmaq-izi"
+
+
+def test_manifest_ETIBARLI_JSON_kimi_serializasiya_olunur(tmp_path) -> None:
+    """`allow_nan=False` — artefakt standart parserlə oxunmalıdır."""
+    runner, _, _, _, _ = build_runner(tmp_path)
+    result = runner.run(split="dev")
+    yazilan = (result.paths.root / "manifest.json").read_text(encoding="utf-8")
+    assert json.loads(yazilan)["sut_index"]["sha256"] == "barmaq-izi"
 
 
 def test_manifest_ACAR_sizdirmir(tmp_path) -> None:

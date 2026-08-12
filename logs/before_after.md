@@ -179,6 +179,10 @@ tələb edir.
 > olduğu üçün yumşaq hədd xilası ona heç vaxt şamil olunmur. Doğru, lakin zəif
 > embedding-li sənəd korpusdan kənar səs-küylə eyni bal zolağındadır.
 >
-> Tövsiyənin **ikinci** hissəsi (sorğu genişləndirməsi) sınanmayıb və qüvvədə
-> qalır — chunking və embedding modeli ilə birlikdə. Onlar parametr deyil,
-> dəyişiklikdir; hər biri öz dövrünü tələb edir.
+> Tövsiyənin **ikinci** hissəsi (sorğu genişləndirməsi) də həmin gün ölçüldü —
+> bu sətir yazılandan sonra. `logs/retrieval_experiments.md`: chunking,
+> embedding modeli və sorğu genişləndirməsi eyni metrika ilə sınandı.
+> Nəticə: **`CHUNK_SIZE=500`** seçildi, uçdan-uca dev və holdout run-ları ilə
+> təsdiqləndi və göndərilməsi tövsiyə olunur. Sorğu genişləndirməsi də örtüyü
+> tamamlayır (üstəlik baseline-dan az retrieval büdcəsi ilə), lakin SUT-a kod
+> dəyişikliyi tələb etdiyi üçün ikinci sıradadır.

@@ -305,24 +305,64 @@ def _config_diff_lines(base_manifest: Mapping[str, Any], var_manifest: Mapping[s
                 "artefakt köhnə sxemlə yazılıb. Müqayisə ehtiyatla oxunmalıdır."
             )
 
-    # --- SUT-un FAKTİKİ retrieval/indeks kimliyi ---
+    # --- SUT-un FAKTİKİ indeksi və retrieval kimliyi ---
+    #
+    # SIRA ƏN GÜCLÜ ŞAHİDDƏN BAŞLAYIR. Hər biri əvvəlkindən zəifdir, ona görə
+    # yalnız biri çap olunur — dörd sətir eyni şeyi dörd cür deyərdi.
+    out.extend(_index_diff_lines(base_manifest, var_manifest))
+    return out
+
+
+def _index_diff_lines(
+    base_manifest: Mapping[str, Any], var_manifest: Mapping[str, Any]
+) -> list[str]:
+    base_index = base_manifest.get("sut_index") or {}
+    var_index = var_manifest.get("sut_index") or {}
+    base_fp, var_fp = base_index.get("sha256"), var_index.get("sha256")
+
+    # 1. Barmaq izi — indeksin MƏZMUNUNDAN törəyir, ən güclü sübutdur.
+    if base_fp and var_fp:
+        if base_fp != var_fp:
+            return [
+                f"- ⚠️ **İndeks FƏRQLİDİR** — barmaq izi `{base_fp}` → `{var_fp}`. "
+                "İki run eyni sənəd mətnləri üzərində ölçülməyib. Bu, "
+                "`config_hash`-də GÖRÜNMÜR."
+            ]
+        return []
+
+    # 2. Chunk sayı — HƏR manifestdə var, o cümlədən `sut_retrieval`-dan
+    #    əvvəlki 2026-08-10 artefaktlarında. Köhnə run-larla müqayisədə
+    #    yeganə şahid budur.
+    base_count = base_manifest.get("sut_chunk_count")
+    var_count = var_manifest.get("sut_chunk_count")
+    if base_count is not None and var_count is not None and base_count != var_count:
+        return [
+            f"- ⚠️ **İndeksdəki chunk sayı fərqlidir** ({base_count} → {var_count}): "
+            "iki run EYNİ indeksdə ölçülməyib. Bu rəqəm barmaq izindən əvvəlki "
+            "artefaktlarda da mövcuddur, ona görə köhnə run-larla müqayisədə "
+            "yeganə şahiddir."
+        ]
+
+    # 3. Niyyət səviyyəsi — `chunk_size` və qapı parametrləri.
     base_sut = base_manifest.get("sut_retrieval")
     var_sut = var_manifest.get("sut_retrieval")
-    if base_sut is None or var_sut is None:
-        out.append(
-            "- ⚠️ Run-lardan birində `sut_retrieval` qeydi yoxdur (artefakt bu sahə "
-            "əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə və eyni "
-            "retrieval parametrləri ilə ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR.**"
-        )
-    else:
+    if base_sut is not None and var_sut is not None:
         differing = _diff_keys(base_sut, var_sut)
         if differing:
-            out.append(
-                f"- ⚠️ **SUT retrieval/indeks fərqlidir** ({len(differing)} açar): "
-                f"{_detail(base_sut, var_sut, differing)}. Bu, `config_hash`-də "
+            return [
+                f"- ⚠️ **SUT retrieval konfiqurasiyası fərqlidir** ({len(differing)} "
+                f"açar): {_detail(base_sut, var_sut, differing)}. Bu, `config_hash`-də "
                 "GÖRÜNMÜR — SUT parametrləri env-dən gəlir."
-            )
-    return out
+            ]
+        return []
+
+    # 4. Heç bir şahid yoxdur.
+    return [
+        "- ⚠️ Run-lardan birində `sut_index`/`sut_retrieval` qeydi yoxdur (artefakt "
+        "bu sahələr əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə "
+        "ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR** — `chunk_size` niyyətdir, "
+        "indeksin özünün sübutu deyil."
+    ]
 
 
 def _cost(run: RunArtifacts, prices: PriceTable) -> str:

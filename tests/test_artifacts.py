@@ -223,3 +223,125 @@ def test_olmayan_qovluqda_siyahi_bosdur(tmp_path) -> None:
 def test_bos_run_artefakti_qurula_bilir() -> None:
     run = RunArtifacts(run_id="x", manifest={}, observations=(), grades=(), verdicts=())
     assert run.causes == ()
+
+
+# --- NaN qoruması və probe artefaktı (2026-08-12) --------------------------
+
+
+def test_manifestde_NaN_yazilmasi_XETA_verir(tmp_path) -> None:
+    """Səssiz `NaN` yazmaq artefaktı diskdə saxlayıb sübut kimi öldürərdi."""
+    from eval.artifacts import RunPaths, RunWriter
+    from eval.errors import ArtifactError
+
+    writer = RunWriter(RunPaths.for_run(tmp_path, "r1"))
+    with pytest.raises(ArtifactError, match="NaN"):
+        writer.write_manifest({"retrieval_soft_floor_margin": float("nan")})
+
+
+def test_probe_MOVCUD_qovlugun_ustune_yazmir(tmp_path) -> None:
+    """D1-in kök səbəbi: üç sweep bir faylı əvəzlədi, ikisi itdi."""
+    from eval.artifacts import ProbePaths, ProbeWriter
+    from eval.errors import ArtifactError
+
+    paths = ProbePaths.for_probe(tmp_path, "20260812T000000Z-sweep-top_k")
+    ProbeWriter(paths).write_manifest({"probe_tool": "sweep"})
+
+    with pytest.raises(ArtifactError, match="üstünə yazılmır"):
+        ProbeWriter(paths)
+
+
+def test_probe_setirleri_AXINLA_yazilir(tmp_path) -> None:
+    """Kəsilən sweep də oxunaqlı qalmalıdır — `runs/` ilə eyni zəmanət."""
+    from eval.artifacts import PROBE_ROWS, ProbePaths, ProbeWriter
+
+    paths = ProbePaths.for_probe(tmp_path, "20260812T000000Z-sweep-top_k")
+    writer = ProbeWriter(paths)
+    writer.append_row({"top_k": 4})
+    # manifest hələ yazılmayıb — sətirlər buna baxmayaraq diskdədir
+    lines = paths.file(PROBE_ROWS).read_text(encoding="utf-8").splitlines()
+    assert [json.loads(l) for l in lines] == [{"top_k": 4}]
+
+
+def test_probe_argv_ACARI_redaksiya_edir(tmp_path) -> None:
+    """argv istifadəçidən gəlir — açar səhvən arqumentə düşə bilər."""
+    from eval.artifacts import PROBE_MANIFEST, ProbePaths, ProbeWriter
+
+    secret = "sk-ant-heqiqi-acar-deyeri-12345"
+    paths = ProbePaths.for_probe(tmp_path, "20260812T000000Z-sweep-top_k")
+    ProbeWriter(paths, secrets=[secret]).write_manifest({"argv": ["--key", secret]})
+
+    text = paths.file(PROBE_MANIFEST).read_text(encoding="utf-8")
+    assert secret not in text
+
+
+def test_probe_id_OXLARI_ada_yazir() -> None:
+    from eval.artifacts import probe_id
+
+    assert probe_id(alet="sweep", oxlar=["top_k", "threshold"], indi="20260812T000000Z") == (
+        "20260812T000000Z-sweep-top_k+threshold"
+    )
+
+
+# --- argv-də maşına aid yol -------------------------------------------------
+#
+# 2026-08-12: `logs/probes/...-eksperiment-.../manifest.json` `--workdir`-i
+# olduğu kimi saxlamışdı, yəni ictimai artefaktda maşının müvəqqəti sessiya
+# qovluğunun tam yolu qalmışdı. Yol SÜBUT DEYİL — hansı indeksin ölçüldüyünü
+# `sut_index.sha256` və chunk ID barmaq izi qeyd edir — ona görə artefaktdan
+# çıxarılır. Repo daxilindəki yol isə sübutun bir hissəsidir və nisbi qalır.
+
+
+def test_argv_REPO_DAXILI_yolu_nisbi_edir(tmp_path) -> None:
+    from eval.artifacts import argv_temizle
+
+    daxili = tmp_path / "logs" / "probes"
+    daxili.mkdir(parents=True)
+    assert argv_temizle(["--probes-dir", str(daxili)], koke=tmp_path) == [
+        "--probes-dir",
+        "logs/probes",
+    ]
+
+
+def test_argv_REPODAN_KENAR_yolu_EVEZLEYIR(tmp_path) -> None:
+    from eval.artifacts import MUVEQQETI_YOL, argv_temizle
+
+    kenar = tmp_path.parent / "kenar-qovluq" / "idx"
+    temiz = argv_temizle(["--workdir", str(kenar)], koke=tmp_path)
+    assert temiz == ["--workdir", MUVEQQETI_YOL]
+    assert str(kenar) not in " ".join(temiz)
+
+
+def test_argv_BERABERLIKLI_forma_da_temizlenir(tmp_path) -> None:
+    """`--workdir=/abs/yol` argparse-də qanunidir və eyni sızmanı verir."""
+    from eval.artifacts import MUVEQQETI_YOL, argv_temizle
+
+    kenar = tmp_path.parent / "kenar-qovluq"
+    assert argv_temizle([f"--workdir={kenar}"], koke=tmp_path) == [
+        f"--workdir={MUVEQQETI_YOL}"
+    ]
+
+
+def test_argv_YOL_OLMAYAN_tokenlere_toxunmur(tmp_path) -> None:
+    """Ölçmə parametrləri toxunulmaz qalmalıdır — onlar sübutdur."""
+    from eval.artifacts import argv_temizle
+
+    argv = ["python", "tools/retrieval_sweep.py", "--top-k", "4", "6", "--threshold", "0.42"]
+    assert argv_temizle(argv, koke=tmp_path) == argv
+
+
+def test_probe_identity_argv_ni_TEMIZLENMIS_saxlayir(tmp_path) -> None:
+    """Təmizləmə çağırana buraxılmır: unudulan yer sızmanın özüdür."""
+    from eval.artifacts import MUVEQQETI_YOL, probe_identity
+
+    kenar = tmp_path.parent / "kenar-qovluq" / "idx"
+    kimlik = probe_identity(
+        alet="eksperiment",
+        argv=["python", "tools/retrieval_experiments.py", "--workdir", str(kenar)],
+        started_at="20260812T000000Z",
+        harness_commit="abc",
+        sut_commit="def",
+        config_hash="hash",
+        dataset_sha256="sha",
+        koke=tmp_path,
+    )
+    assert kimlik["argv"][-1] == MUVEQQETI_YOL

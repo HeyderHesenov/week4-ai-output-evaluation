@@ -46,6 +46,31 @@ GRADES = "grades.jsonl"
 VERDICTS = "verdicts.jsonl"
 CAUSES = "causes.jsonl"
 
+# Probe artefaktı — sweep/eksperiment üçün, `runs/` ilə eyni konvensiya.
+PROBE_MANIFEST = "manifest.json"
+PROBE_ROWS = "rows.jsonl"
+PROBE_SUMMARY = "summary.md"
+
+
+def _json(payload: Any, *, indent: int | None = None) -> str:
+    """`allow_nan=False` — NaN/Infinity artefakta HEÇ VAXT düşmür.
+
+    Python-un defoltu çılpaq `NaN` / `Infinity` yazır. Bunlar JSON deyil
+    (RFC 8259), yəni belə bir manifest standart parserlə oxunmur: artefakt
+    diskdə var, amma sübut kimi yararsızdır. `eval/config.py`-dakı
+    `yoxla_retrieval` bunu girişdə tutur; bura isə ikinci qatdır, çünki
+    dəyər SUT-dan kopyalanaraq da gələ bilər (`_effective_retrieval`) və o
+    yol bizim validatoru görmür.
+    """
+    try:
+        return json.dumps(payload, indent=indent, ensure_ascii=False, allow_nan=False)
+    except ValueError as exc:
+        raise ArtifactError(
+            f"Artefakta NaN/Infinity yazılmır: {exc}\n"
+            "Nəticə etibarlı JSON olmazdı və artefakt sübut kimi oxunmazdı. "
+            "Mənbə çox vaxt konfiqurasiyadır — RETRIEVAL_* dəyərlərini yoxlayın."
+        ) from None
+
 
 # ---------------------------------------------------------------------------
 # Redaksiya
@@ -92,6 +117,177 @@ def list_runs(runs_dir: Path) -> tuple[str, ...]:
 
 
 # ---------------------------------------------------------------------------
+# Probe qovluğu — sweep və eksperiment artefaktları
+# ---------------------------------------------------------------------------
+#
+# NİYƏ RUN İLƏ EYNİ MÜQAVİLƏ
+# ---------------------------
+# Sweep pul xərcləyir və sənəddə sitat gətirilən rəqəm istehsal edir — yəni
+# sübutdur. Əvvəlki versiya onu sabit `--out` faylına yazırdı və üç ardıcıl
+# sweep bir-birinin üstünə yazdı: sənəd dörd ox üzrə nəticə iddia etdi,
+# diskdə isə yalnız sonuncu qaldı. Bu, transkripsiya səhvi deyil, artefakt
+# müqaviləsindəki boşluq idi — `runs/` heç vaxt üstünə yazılmır, sweep isə
+# yazılırdı. Asimmetriya aradan qaldırılır.
+
+
+@dataclass(frozen=True)
+class ProbePaths:
+    root: Path
+
+    @classmethod
+    def for_probe(cls, probes_dir: Path, probe_id: str) -> "ProbePaths":
+        return cls(root=probes_dir / probe_id)
+
+    @property
+    def probe_id(self) -> str:
+        return self.root.name
+
+    def file(self, name: str) -> Path:
+        return self.root / name
+
+    def exists(self) -> bool:
+        return self.file(PROBE_MANIFEST).exists()
+
+
+def probe_id(*, alet: str, oxlar: Sequence[str], indi: str) -> str:
+    """`20260812T131500Z-sweep-top_k+lexical_threshold`.
+
+    Ox adları ada QƏSDƏN düşür: qovluq siyahısına baxan adam hansı sweep-in
+    hansı oxu əhatə etdiyini faylı açmadan görür. Vaxt damğası isə eyni
+    oxların təkrar ölçülməsini ƏVƏZ etmir, YANINA qoyur.
+    """
+    if not alet:
+        raise ArtifactError("probe_id: alət adı boş ola bilməz.")
+    suffiks = "+".join(oxlar) if oxlar else "sabit"
+    return f"{indi}-{alet}-{suffiks}"
+
+
+# Repo-dan KƏNAR mütləq yolun artefaktdakı əvəzi.
+MUVEQQETI_YOL = "<müvəqqəti-qovluq>"
+
+
+def _yol_kimi_gorunur(token: str) -> bool:
+    return token.startswith(("/", "~"))
+
+
+def _yolu_temizle(token: str, koke: Path) -> str:
+    try:
+        cozulmus = Path(token).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return MUVEQQETI_YOL
+    try:
+        return str(cozulmus.relative_to(koke))
+    except ValueError:
+        return MUVEQQETI_YOL
+
+
+def argv_temizle(argv: Sequence[str], *, koke: Path) -> list[str]:
+    """argv-dən maşına aid MÜTLƏQ yolları çıxarır, qalanına toxunmur.
+
+    NİYƏ: artefakt ictimai repo-ya düşür və mütləq yol maşını tanıdır —
+    istifadəçi adı, müvəqqəti sessiya qovluğu, alət izləri. Bu yol SÜBUT
+    DEYİL: hansı indeksin ölçüldüyü sualına `sut_index.sha256` və chunk ID
+    barmaq izi cavab verir, `--workdir`-in harada olması isə nəticəyə təsir
+    etmir — istənilən boş qovluq eyni cədvəli verir.
+
+    Repo daxilindəki yol NİSBİ qalır, çünki o, sübutun bir hissəsidir
+    (`logs/probes/...` oxucunun aça biləcəyi faktiki fayldır) və nisbi
+    formada maşından asılı olmur — `config._repo_relative` ilə eyni qayda.
+
+    Yol OLMAYAN tokenlər toxunulmur: `--top-k 4 6 8` ölçmənin özüdür.
+    """
+    koke = koke.resolve()
+    out: list[str] = []
+    for token in argv:
+        if _yol_kimi_gorunur(token):
+            out.append(_yolu_temizle(token, koke))
+        elif token.startswith("--") and "=" in token:
+            # `--workdir=/abs/yol` argparse-də `--workdir /abs/yol` ilə eyni
+            # mənadadır; yalnız birini təmizləmək qapını açıq saxlayardı.
+            ad, _, deyer = token.partition("=")
+            out.append(
+                f"{ad}={_yolu_temizle(deyer, koke)}"
+                if _yol_kimi_gorunur(deyer)
+                else token
+            )
+        else:
+            out.append(token)
+    return out
+
+
+def probe_identity(
+    *,
+    alet: str,
+    argv: Sequence[str],
+    started_at: str,
+    harness_commit: str,
+    sut_commit: str,
+    config_hash: str,
+    dataset_sha256: str,
+    koke: Path,
+    split: str = "dev",
+) -> dict[str, Any]:
+    """Hər probe manifestinin ortaq kimlik bloku.
+
+    `argv` qəsdən saxlanılır: «bu cədvəl hansı əmrlə alınıb?» sualının
+    cavabı sənəddə deyil, artefaktda olmalıdır — sənəd köhnələ bilər.
+
+    Təmizləmə BURADA aparılır, çağıranda yox: `koke` məcburi arqumentdir,
+    ona görə yeni alət də onu ötürməyə məcburdur. Sızma məhz unudulan
+    yerdə baş verir.
+    """
+    return {
+        "probe_tool": alet,
+        "argv": argv_temizle(argv, koke=koke),
+        "started_at": started_at,
+        "harness_commit": harness_commit,
+        "sut_commit": sut_commit,
+        "config_hash": config_hash,
+        "dataset_sha256": dataset_sha256,
+        "split": split,
+    }
+
+
+class ProbeWriter:
+    """Sweep/eksperiment artefaktı — MÖVCUD qovluğun üstünə yazmır.
+
+    `RunWriter` ilə eyni zəmanətlər: hər sətir yazılan anda diskə düşür
+    (kəsilən icra da oxunaqlı qalır) və açar dəyərləri redaksiya olunur —
+    argv istifadəçidən gəlir, açar oraya səhvən düşə bilər.
+    """
+
+    def __init__(self, paths: ProbePaths, *, secrets: Sequence[str] = ()) -> None:
+        if paths.exists():
+            raise ArtifactError(
+                f"{paths.root} artıq mövcuddur — ölçmə qeydinin üstünə yazılmır.\n"
+                "Hər icra öz qovluğunu alır; köhnə artefakt sübutdur, silinmir "
+                "və əvəzlənmir."
+            )
+        self.paths = paths
+        self._secrets = tuple(s for s in secrets if s)
+        self.paths.root.mkdir(parents=True, exist_ok=True)
+
+    def write_manifest(self, manifest: dict[str, Any]) -> None:
+        self._write_text(PROBE_MANIFEST, _json(manifest, indent=2) + "\n")
+
+    def append_row(self, row: dict[str, Any]) -> None:
+        with self.paths.file(PROBE_ROWS).open("a", encoding="utf-8") as handle:
+            handle.write(redact(_json(row), self._secrets) + "\n")
+
+    def write_summary(self, markdown: str) -> None:
+        """Sənədə köçürüləcək cədvəl BURADA yaranır, əl ilə yazılmır.
+
+        Transkripsiya səhvini struktur olaraq mümkünsüz edən budur:
+        `tests/test_logs_iddialari.py` `logs/*.md`-dəki hər artefakt blokunun
+        məhz bu faylda mövcud olduğunu yoxlayır.
+        """
+        self._write_text(PROBE_SUMMARY, markdown)
+
+    def _write_text(self, name: str, text: str) -> None:
+        self.paths.file(name).write_text(redact(text, self._secrets), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
 # Yazma
 # ---------------------------------------------------------------------------
 
@@ -105,7 +301,7 @@ class RunWriter:
         self.paths.root.mkdir(parents=True, exist_ok=True)
 
     def write_manifest(self, manifest: dict[str, Any]) -> None:
-        self._write_text(MANIFEST, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+        self._write_text(MANIFEST, _json(manifest, indent=2) + "\n")
 
     def append_observation(self, obs: SutObservation) -> None:
         self._append(OBSERVATIONS, asdict(obs))
@@ -129,7 +325,7 @@ class RunWriter:
     # -- daxili -----------------------------------------------------------
 
     def _line(self, payload: dict[str, Any]) -> str:
-        return redact(json.dumps(payload, ensure_ascii=False), self._secrets) + "\n"
+        return redact(_json(payload), self._secrets) + "\n"
 
     def _append(self, name: str, payload: dict[str, Any]) -> None:
         with self.paths.file(name).open("a", encoding="utf-8") as handle:

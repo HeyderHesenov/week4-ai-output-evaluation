@@ -191,3 +191,67 @@ ona **tabe olmur** və cavabı adi qaydada qiymətləndirir.
 `incomplete`-in üstünlük təşkil etməsi `before_after.md`-dəki tapıntı ilə
 uzlaşır: bu korpusda hakimin ən çox gördüyü qüsur natamamlıqdır,
 uydurma deyil.
+
+---
+
+# ⟶ YENİLƏMƏ (2026-08-12): əhatə genişləndi, verbosity qərəzi GÜCLƏNDİ
+
+Bu sənədin yuxarısındakı rəqəmlər dörd run-ın 34 verdikti üzrədir və həmin
+tarixdə doğru idi. 2026-08-12-də chunking dövrü iki yeni run əlavə etdi
+(`20260812T094516Z-dev-baseline`, `20260812T095145Z-holdout-baseline`), ona
+görə əhatə dəyişdi. Köhnə rəqəmlər silinmir; yeniləri buradadır.
+
+## Yeni əhatə: 6 run, 51 verdikt
+
+```
+kappa = 0.13, xam razılıq = 33% (n = 9); verbosity ρ = +0.37 (n = 51)
+```
+
+**kappa dəyişmir** və dəyişməməlidir: insan etiketləri `(run_id, repeat)`
+ünvanına bağlıdır və o iki baseline run-ı yerindədir. Yeni run-lar
+etiketlənməyib, ona görə kappanın n-i 9 qalır. Bu, dizaynın işlədiyinin
+əlamətidir — əks halda yeni run-lar kappanın n-ini süni şişirdərdi.
+
+## Verbosity qərəzi artıq həddi aşır
+
+| ölçü | 2026-08-10 (34 verdikt) | 2026-08-12 (51 verdikt) |
+|---|---|---|
+| Spearman ρ (bal ↔ cavab uzunluğu) | +0.25 | **+0.37** |
+| Holdout run-ında (n = 12) | — | **+0.83** |
+
+Sənədin yuxarısındakı «Cari dəyər həmin həddin altındadır» cümləsi **artıq
+doğru deyil**. `logs/report_20260812T095145Z-holdout-baseline.md` bu
+xəbərdarlığı çap edir:
+
+> ⚠️ Güclü müsbət korrelyasiya: hakim uzun cavaba yüksək bal verməyə
+> meyllidir, yəni bal qismən sözçülüyü ölçür.
+
+## Bunun kappa ilə birlikdə mənası
+
+İki müstəqil ölçü eyni istiqamətə işarə edir:
+
+- **kappa = 0.13** — hakimin qərarı insanla zəif uzlaşır;
+- **ρ = +0.37 (holdout-da +0.83)** — hakimin balı cavabın uzunluğu ilə
+  güclü korrelyasiya edir.
+
+Birlikdə oxunanda bu, hakimin ölçdüyü şeyin bir hissəsinin **sözçülük**
+olduğunu göstərir. Ona görə hakim-törəmə bütün rəqəmlər (`open_ended` və
+`ambiguous` kateqoriyalarının pass-rate-i) ehtiyatla oxunmalıdır — və
+chunking dövründəki `dev_ambiguous_limit` geriləməsinin holdout-da
+təkrarlanmaması da məhz bu kontekstdə oxunmalıdır.
+
+**Diqqət — bu, səbəb-nəticə iddiası deyil.** Uzun cavab həm də daha tam ola
+bilər; korrelyasiya qərəzi sübut etmir, onu mümkün edir. Ayırd etmək üçün
+uzunluğu sabit saxlayan ayrıca ölçmə lazımdır və o aparılmayıb.
+
+## Bayraq sayları (51 verdikt)
+
+| bayraq | say |
+|---|---|
+| `incomplete` | 30 |
+| `appropriate_refusal` | 15 |
+| `unsupported_claim` | 9 |
+| `injection_attempt` | 9 |
+
+`judge_error` = **0** (bütün 6 run üzrə) — hakim heç bir halda cavabsız
+qalmayıb, yəni yuxarıdakı rəqəmlərin heç biri xəta ilə çirklənməyib.

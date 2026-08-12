@@ -34,12 +34,13 @@ təsnif edir — yəni keçid kimi sayılmır.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from .config import Settings
 from .dataset import EvalCase
@@ -64,6 +65,12 @@ class SutInfo:
     # qurulmuş pipeline-dan geri oxunanı. Fərq ola bilər (SUT `validate()`
     # edir), və manifestə düşməli olan faktiki dəyərdir.
     retrieval: Mapping[str, Any] = field(default_factory=dict)
+    # SORĞULANAN İNDEKSİN ÖZÜ haqqında fakt — `retrieval` isə NİYYƏTDİR.
+    # Fərq vacibdir: `chunk_size` `sut_settings`-dən oxunur, yəni TƏZƏ
+    # ingest-in nə edəcəyini bildirir. `CHUNK_SIZE=500` verib `PERSIST_DIR`-i
+    # köhnə 800/200 indeksinə yönəltmək manifestə `chunk_size: 500` yazır,
+    # halbuki 800/200 chunk-lar xidmət olunur. Barmaq izi bunu tutur.
+    index: Mapping[str, Any] = field(default_factory=dict)
 
 
 def read_git_commit(path: Path) -> str:
@@ -171,6 +178,7 @@ class RagSut:
             chunk_count=count,
             sut_path=str(path),
             retrieval=_effective_retrieval(pipeline),
+            index=_index_identity(pipeline),
         )
         return self._info
 
@@ -351,6 +359,50 @@ def _effective_retrieval(pipeline: Any) -> dict[str, Any]:
     soft_floor = getattr(sut_settings, "soft_floor", None)
     if soft_floor is not None:
         out["soft_floor"] = round(float(soft_floor), 4)
+    return out
+
+
+def index_fingerprint(ids: Iterable[str]) -> str:
+    """Sıralanmış chunk ID dəstinin sha256-sı (16 simvol).
+
+    SUT-da `chunk_id` = sha1(mənbə|mətn) olduğu üçün ID-lər MƏZMUNDAN
+    törəyir: fərqli chunking = fərqli mətn = fərqli ID dəsti = fərqli
+    barmaq izi. `tools/retrieval_experiments.py` eyni düsturu işlədir, ona
+    görə probe artefaktı ilə run manifesti birləşdirilə bilir — «bu run
+    məhz eksperimentin ölçdüyü indeksdədir» iddiası yoxlanan olur.
+    """
+    digest = hashlib.sha256()
+    for chunk_id in sorted(ids):
+        digest.update(chunk_id.encode("utf-8"))
+        digest.update(b"\n")
+    return digest.hexdigest()[:16]
+
+
+def _index_identity(pipeline: Any) -> dict[str, Any]:
+    """Sorğulanan kolleksiyanın ÖZÜ haqqında fakt.
+
+    Şəbəkəyə çıxmır, embedding çağırmır, pul xərcləmir.
+
+    Oxuna bilməsə preflight DAYANMIR: barmaq izi sübutdur, qapı deyil.
+    Sahə boş qalır və hesabat «təsdiqlənə bilmir» deyir — uydurulmuş dəyər
+    yazmaqdansa boşluğu etiraf etmək doğrudur.
+    """
+    store = getattr(pipeline, "store", None)
+    if store is None:
+        return {}
+    out: dict[str, Any] = {}
+    try:
+        # SUT-un öz oxuma yolu (`rag/store.py`-dakı `_lexical_index` ilə eyni):
+        # `include=[]` yalnız ID qaytarır, mətn və vektor yox.
+        ids = store._store.get(include=[]).get("ids", [])
+    except Exception:  # noqa: BLE001 — sübut əldə edilməsə, iddia da edilmir
+        return out
+    if ids:
+        out["sha256"] = index_fingerprint(ids)
+        out["id_count"] = len(ids)
+    persist_dir = getattr(getattr(pipeline, "settings", None), "persist_dir", None)
+    if persist_dir is not None:
+        out["persist_dir_name"] = Path(str(persist_dir)).name
     return out
 
 

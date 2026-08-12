@@ -266,9 +266,12 @@ def _cfg_diff(base_cfg, var_cfg, base_sut=None, var_sut=None):
     from eval.report import _config_diff_lines
 
     same = {"top_k": 4, "chunk_size": 800}
+    fp = {"sha256": "eyni-barmaq-izi"}
     return _config_diff_lines(
-        {"config_hash": "aaa", "config": base_cfg, "sut_retrieval": base_sut or same},
-        {"config_hash": "bbb", "config": var_cfg, "sut_retrieval": var_sut or same},
+        {"config_hash": "aaa", "config": base_cfg, "sut_retrieval": base_sut or same,
+         "sut_chunk_count": 19, "sut_index": fp},
+        {"config_hash": "bbb", "config": var_cfg, "sut_retrieval": var_sut or same,
+         "sut_chunk_count": 19, "sut_index": fp},
     )
 
 
@@ -279,6 +282,8 @@ def test_eyni_hash_ve_eyni_indeks_ise_XEBERDARLIQ_yoxdur() -> None:
         "config_hash": "aaa",
         "config": {"repeats": 1},
         "sut_retrieval": {"top_k": 4, "chunk_size": 800},
+        "sut_chunk_count": 19,
+        "sut_index": {"sha256": "eyni"},
     }
     assert _config_diff_lines(same, same) == []
 
@@ -295,16 +300,18 @@ def test_CHUNKING_ferqi_config_hash_eyni_olsa_da_tutulur() -> None:
     base = {
         "config_hash": "eyni",
         "config": {"repeats": 1},
+        "sut_chunk_count": 19,
         "sut_retrieval": {"chunk_size": 800, "persist_dir_name": "chroma"},
     }
     var = {
         "config_hash": "eyni",
         "config": {"repeats": 1},
+        "sut_chunk_count": 19,
         "sut_retrieval": {"chunk_size": 500, "persist_dir_name": "chroma_c500"},
     }
     lines = _config_diff_lines(base, var)
     assert len(lines) == 1
-    assert "SUT retrieval/indeks fərqlidir" in lines[0]
+    assert "SUT retrieval konfiqurasiyası fərqlidir" in lines[0]
     assert "800 → 500" in lines[0]
 
 
@@ -312,7 +319,7 @@ def test_sut_retrieval_qeydi_YOXDURSA_tesdiqlene_bilmir_deyilir() -> None:
     """Köhnə artefaktla müqayisə «eynidir» kimi göstərilməməlidir."""
     from eval.report import _config_diff_lines
 
-    base = {"config_hash": "aaa", "config": {}}  # sut_retrieval yoxdur
+    base = {"config_hash": "aaa", "config": {}}  # heç bir şahid yoxdur
     var = {"config_hash": "aaa", "config": {}, "sut_retrieval": {"chunk_size": 500}}
     lines = _config_diff_lines(base, var)
     assert len(lines) == 1
@@ -356,3 +363,57 @@ def test_hash_ferqli_amma_config_boshdursa_KOHNE_SXEM_deyilir() -> None:
     lines = _cfg_diff({}, {})
     assert len(lines) == 1
     assert "köhnə sxemlə" in lines[0]
+
+
+# --- indeks kimliyi müqayisədə (2026-08-12) ---------------------------------
+
+
+def test_BARMAQ_IZI_ferqi_en_guclu_ifadedir() -> None:
+    """Barmaq izi indeksin MƏZMUNUNDAN törəyir — chunk sayı üst-üstə düşsə də
+    fərqli mətnləri tutur."""
+    from eval.report import _config_diff_lines
+
+    base = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
+            "sut_index": {"sha256": "aaaa"}}
+    var = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
+           "sut_index": {"sha256": "bbbb"}}
+    lines = _config_diff_lines(base, var)
+    assert len(lines) == 1
+    assert "İndeks FƏRQLİDİR" in lines[0]
+    assert "aaaa" in lines[0] and "bbbb" in lines[0]
+
+
+def test_sut_chunk_count_ferqi_TUTULUR_kohne_artefaktla_da() -> None:
+    """Real cüt: 2026-08-10 baseline-ında 19, 2026-08-12-də 29 chunk.
+
+    Köhnə manifestdə nə `sut_index`, nə `sut_retrieval` var — amma
+    `sut_chunk_count` HƏR manifestdə mövcuddur, ona görə yeganə şahiddir.
+    """
+    from eval.report import _config_diff_lines
+
+    base = {"config_hash": "a", "config": {}, "sut_chunk_count": 19}
+    var = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
+           "sut_index": {"sha256": "bbbb"}}
+    lines = _config_diff_lines(base, var)
+    assert len(lines) == 1
+    assert "chunk sayı fərqlidir" in lines[0]
+    assert "19 → 29" in lines[0]
+
+
+def test_eyni_barmaq_izi_XEBERDARLIQ_vermir() -> None:
+    from eval.report import _config_diff_lines
+
+    same = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
+            "sut_index": {"sha256": "aaaa"}}
+    assert _config_diff_lines(same, same) == []
+
+
+def test_hec_bir_sahid_yoxdursa_TESDIQLENE_BILMIR_deyilir() -> None:
+    from eval.report import _config_diff_lines
+
+    base = {"config_hash": "a", "config": {}}
+    var = {"config_hash": "a", "config": {}}
+    lines = _config_diff_lines(base, var)
+    assert len(lines) == 1
+    assert "TƏSDİQLƏNƏ BİLMİR" in lines[0]
+    assert "niyyətdir" in lines[0]

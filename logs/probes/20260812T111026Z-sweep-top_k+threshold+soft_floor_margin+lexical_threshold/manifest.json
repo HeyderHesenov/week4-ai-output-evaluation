@@ -1,0 +1,30 @@
+{
+  "probe_tool": "sweep",
+  "argv": [
+    "python",
+    "tools/retrieval_sweep.py",
+    "--top-k",
+    "4",
+    "6",
+    "8",
+    "--threshold",
+    "0.42",
+    "0.34",
+    "0.30",
+    "--margin",
+    "0.10",
+    "0.18",
+    "0.26",
+    "--lexical",
+    "0.35",
+    "0.17"
+  ],
+  "started_at": "20260812T111026Z",
+  "harness_commit": "8146a7f2378f8ad855298bc2db20064c6f626e50",
+  "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
+  "config_hash": "ac1f04888017928e",
+  "dataset_sha256": "587dae5440b1ca981b21d70453ee472e52d9fba1898fe868542575c8466b27dd",
+  "split": "dev",
+  "namizəd_sayı": 54,
+  "case_sayı": 12
+}

@@ -229,3 +229,127 @@ təsir etmir və etməməlidir. Növbəti dövr üçün istiqamət budur.
 **Holdout registri artıq 3-dədir. Növbəti holdout icrası bu blind-check
 iddiasını daha da zəiflədir — növbəti dövr dev-də qurulmalı və holdout yalnız
 son təsdiq üçün saxlanılmalıdır.**
+
+---
+
+# ⟶ RETRAKSİYA (2026-08-12): genişləndirmə sətirləri ədalətli müqayisə deyil
+
+Yuxarıdakı mətn silinmir. Geri götürülən **yalnız sorğu genişləndirməsinə**
+aid hissədir.
+
+## Nə pozulub
+
+`sub_queries()` parçaları `?`-dən təmizləyir, sonra isə «tam sual artıq
+siyahıdadırmı» yoxlamasını **təmizlənməmiş** sualla aparırdı. Şərt həmişə
+doğru çıxırdı, yəni tam sual **hər dəfə** əlavə olunurdu — bağlayıcısı
+olmayan sual üçün belə.
+
+Ölçülmüş nəticə: genişləndirmə sətirləri **108** chunk çəkib, baseline isə
+**48** — 2.25 dəfə artıq büdcə. Cədvəlin öz müqəddiməsi «qapı sabitdir ki,
+yalnız bir şey dəyişsin» deyir, halbuki büdcə də dəyişirdi.
+
+Daha kəskin ikinci səbəb: 12 dev sualının **9-unda bağlayıcı yoxdur**, yəni
+onların «genişləndirməsi» eyni sualın `?`-siz nüsxəsi idi. Ona görə «8/8»
+nəticəsinin sual bölgüsündən, yoxsa təkrarlanan embedding-dən gəldiyini
+mövcud artefakt **ayırd edə bilmir**.
+
+Geri götürülür:
+- `sorğu genişləndirmə` və `genişləndirmə + 300/90` cədvəl sətirləri
+- «Sorğu genişləndirmə indeksə toxunmadan işləyir» abzası
+- «Tövsiyə» bölməsindəki «Sorğu genişləndirmə də eyni nəticəni verir» abzası
+
+## Nə pozulmayıb — sərhəd açıq deyilir
+
+Chunking sətirlərinin hamısı **büdcə-bərabərdir** (12 sorğu / 48 çəkilən
+chunk, artefaktda yoxlanıla bilər), ona görə aşağıdakılar toxunulmur:
+
+- `chunking 500/150` və qalan bütün chunking sətirləri
+- `embedding 3-large` sətirləri
+- **`CHUNK_SIZE=500` tövsiyəsi**
+- Uçdan-uca dev run (`20260812T094516Z-dev-baseline`)
+- Holdout təsdiqi və öncədən qeyd edilmiş proqnoz
+- `logs/judge_bias.md`, `logs/before_after.md`
+
+Sərhədini göstərməyən retraksiya geri götürdüyü iddia qədər etibarsızdır.
+
+## Düzəliş
+
+`sub_queries()` indi bölgünü **yalnız hər iki tərəf müstəqil sual kimi
+oxunanda** qəbul edir; bölgü baş tutmasa nəticə **tək** sorğudur. Bu, həm
+təkrarlanan nüsxəni, həm də «iki ismi birləşdirən `və`» halını həll edir
+(«Backup və restore prosedurları nədir?» əvvəllər birinci ismi silirdi).
+12 dev sualı üçün cəmi sorğu **27 → 16**.
+
+Büdcə artıq hər sətirdə rəqəmlə yazılır (`retrieval_budget`) və baseline ilə
+uyğun gəlməyən sətir `summary.md`-də işarələnir; alət `exit 3` qaytarır
+(`--allow-unmatched-budget` ilə söndürülür). Sətir həmişə ölçülür və yazılır
+— sübut məhv edilmir. Genişləndirmə indi **iki** sətirdə ölçülür: büdcə
+bərabər və büdcə sərbəst, yəni əlavə büdcənin nə qazandırdığı görünür.
+
+Yenidən ölçmənin nəticəsi aşağıdakı bölmədədir.
+
+---
+
+# YENİDƏN ÖLÇÜLDÜ (2026-08-12) — büdcə bərabərləşdirildi
+
+Aşağıdakı cədvəl **iki dəfə, müstəqil olaraq** istehsal olunub: `111502Z` və
+`191757Z` icraları eyni 9 sətri — chunk sayı, örtük, sızma, büdcə — hərfi-hərfinə
+təkrarladı. İkinci icra artefaktdakı `--workdir` yolunun təmizlənməsi
+(`eval.artifacts.argv_temizle`) üçün lazım idi; nəticənin dəyişməməsi isə
+əlavə fayda oldu — ölçmənin təkrar istehsal olunduğunun sübutu. Saxlanılan
+artefakt ikincisidir.
+
+<!-- artefakt: 20260812T191757Z-eksperiment-chunking+embedding+genişləndirmə -->
+
+| eksperiment | indeks chunk | örtük | sızma | retrieval büdcəsi |
+|---|---|---|---|---|
+| baseline (800/200) | 19 | 7/8 | 1/2 | 48 |
+| chunking 500/150 | 29 | 8/8 | 1/2 | 48 |
+| chunking 400/120 | 35 | 8/8 | 1/2 | 48 |
+| chunking 300/90 | 47 | 8/8 | 2/2 | 48 |
+| chunking 250/60 | 54 | 8/8 | 2/2 | 48 |
+| embedding 3-large | 19 | 7/8 | 1/2 | 48 |
+| 3-large + chunking 300/90 | 47 | 8/8 | 1/2 | 48 |
+| genişləndirmə (büdcə bərabər) | 19 | 8/8 | 1/2 | 46 ↓ büdcə az |
+| genişləndirmə (büdcə sərbəst) | 19 | 8/8 | 1/2 | 64 ✗ BÜDCƏ ARTIQ |
+
+<!-- /artefakt -->
+
+## Chunking nəticəsi dəyişmədi
+
+`chunking 500/150` yenə **8/8 örtük, 1/2 sızma, 48 büdcə** — baseline ilə
+eyni büdcədə. `CHUNK_SIZE=500` tövsiyəsi və onun üzərində qurulmuş dev və
+holdout run-ları toxunulmamış qalır.
+
+## Genişləndirmə: düzəldilmiş ölçmə nəticəni ZƏİFLƏTMƏDİ, GÜCLƏNDİRDİ
+
+Bu, gözlənilən nəticə deyildi və açıq deyilməlidir. Retraksiya
+genişləndirmənin 2.25 dəfə artıq büdcə ilə ölçüldüyünü qeyd etmişdi;
+düzəlişdən sonra gözlənti nəticənin pisləşməsi idi.
+
+Əksi oldu: büdcə-bərabər rejimdə genişləndirmə **46** chunk çəkir — yəni
+baseline-dan (**48**) **az** — və buna baxmayaraq örtüyü tamamlayır, sızmanı
+isə artırmır. Səbəb bölgünün indi düzgün işləməsidir: 12 dev sualından
+yalnız 2-si bölünür, hər biri 3 sorğuya, və hər sorğu `k // 3 = 1` chunk
+çəkir. Yəni əlavə sorğu ümumi büdcəni artırmır, onu daha yaxşı paylayır.
+
+«↓ büdcə az» işarəsi problem deyil: eyni örtüyü daha ucuz almaq nəticəni
+gücləndirir. Alət yalnız **artıq** büdcəni uyğunsuz sayır.
+
+Büdcə-sərbəst sətir (64) məhz müqayisə üçün saxlanılır: əlavə büdcənin
+**heç nə qazandırmadığını** göstərir — örtük və sızma eynidir.
+
+## Tövsiyə dəyişmir, amma səbəbi dəqiqləşir
+
+`CHUNK_SIZE=500` **birinci** qalır, çünki uçdan-uca dev və holdout run-ları
+ilə təsdiqlənib — genişləndirmə isə yalnız örtük səviyyəsində ölçülüb.
+
+Genişləndirmə artıq «eyni nəticəni verir, amma kod tələb edir» deyil, daha
+dəqiq bir şeydir: **indeksə toxunmadan, baseline-dan az büdcə ilə eyni
+örtüyü verir.** Bu, onu növbəti dövr üçün ciddi namizəd edir.
+
+Məhdudiyyət qalır və o, mexanizmdən görünür: bölgü əl ilə seçilmiş
+bağlayıcılara baxır, holdout-un multi-hop sualı isə hopları «ilə» ilə
+birləşdirir — yəni orada bölgü işə düşməzdi. Bunu aradan qaldırmaq üçün
+bağlayıcı siyahısını uzatmaq yox, sintaktik təhlil və ya model lazımdır; o
+isə ayrıca dövrdür.

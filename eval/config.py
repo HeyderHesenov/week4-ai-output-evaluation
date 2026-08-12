@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -180,6 +181,85 @@ def _env_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         raise ConfigError(f"{name} ədəd olmalıdır, '{raw}' verilib.") from None
+
+
+# Kontekstə düşən chunk sayının yuxarı həddi. Korpus 19-54 chunk-dır, yəni
+# k > 50 retrieval deyil, korpusun tamamını prompta tökmək deməkdir: pullu
+# run-da prompt xərcini səssizcə qat-qat artırar və «retrieval ölçdük»
+# iddiasını mənasız edər.
+RETRIEVAL_TOP_K_MAX = 50
+
+
+def _sonlu(ad: str, deyer: float) -> float:
+    """NaN/Inf BURADA kəsilir — üç qat mina olduğu üçün.
+
+    1. NaN ilə HƏR müqayisə False verir: `bal >= astana` heç vaxt doğru
+       olmur, yəni qapı SƏSSİZCƏ hər şeyi rədd edir və nəticə «sistem
+       imtina edir» kimi oxunur — halbuki bu, konfiqurasiya səhvidir.
+    2. `json.dumps` onu çılpaq `NaN` yazır. Bu, JSON DEYİL (RFC 8259);
+       commit edilmiş manifest standart parserlə oxunmur.
+    3. `config_hash` həmin yararsız payload üzərindən hesablanır.
+    """
+    if not math.isfinite(deyer):
+        raise ConfigError(
+            f"{ad} sonlu ədəd olmalıdır, verilib: {deyer}.\n"
+            "NaN/Inf qapını səssizcə tam imtinaya çevirir və manifesti "
+            "etibarsız JSON edir."
+        )
+    return deyer
+
+
+def _sifir_bir_araliginda(ad: str, deyer: float) -> None:
+    """Kosinus oxşarlığı şkalası — məsafə deyil.
+
+    Səhv şkalada verilmiş rəqəm (məsələn 1.8) SUT-da səssizcə «heç nə
+    keçmir» davranışına çevrilir və bütün case-lər imtina ilə bitər; bunu
+    run bitdikdən sonra pass-rate düşməsi kimi oxumaq asan səhvdir.
+    """
+    _sonlu(ad, deyer)
+    if not 0.0 <= deyer <= 1.0:
+        raise ConfigError(
+            f"{ad} kosinus oxşarlığı şkalasındadır (0-1), verilib: {deyer}."
+        )
+
+
+def yoxla_retrieval(
+    *,
+    top_k: int | None = None,
+    threshold: float | None = None,
+    soft_floor_margin: float | None = None,
+    lexical_threshold: float | None = None,
+    prefiks: str = "RETRIEVAL_",
+) -> None:
+    """Retrieval hədlərinin YEGANƏ tərifi.
+
+    `tools/` də bunu çağırır — və bu, təkrarçılıq deyil, məqsəddir: hədlər
+    yalnız pullu yolda tətbiq olunsaydı, parametrlərin əslində araşdırıldığı
+    ucuz yol (sweep) yoxlamasız qalardı.
+
+    SUT-un öz `validate()`-i ehtiyat qapı DEYİL: orada `soft_floor_margin`
+    yoxlaması eyni birtərəfli kor nöqtəyə malikdir və `top_k` yuxarı həddi
+    yoxdur — yəni bizim buraxdığımızı o da buraxır.
+    """
+    if top_k is not None:
+        if top_k <= 0:
+            raise ConfigError(f"{prefiks}TOP_K müsbət olmalıdır, verilib: {top_k}.")
+        if top_k > RETRIEVAL_TOP_K_MAX:
+            raise ConfigError(
+                f"{prefiks}TOP_K ən çox {RETRIEVAL_TOP_K_MAX} ola bilər, "
+                f"verilib: {top_k}. Bundan yuxarısı korpusun tamamını prompta "
+                "tökür və pullu run-ın xərcini səssizcə artırır."
+            )
+    if threshold is not None:
+        _sifir_bir_araliginda(f"{prefiks}THRESHOLD", threshold)
+    if lexical_threshold is not None:
+        _sifir_bir_araliginda(f"{prefiks}LEXICAL_THRESHOLD", lexical_threshold)
+    if soft_floor_margin is not None:
+        # YUXARI HƏDD NİYƏ VACİBDİR: marja EYNİ 0-1 şkalasından çıxılır.
+        # `marja >= astana` yumşaq həddi 0-a endirir, yəni dense qapı tamam
+        # sönür və yalnız leksik dəstək qalır. Bu, qanuni konfiqurasiyadır —
+        # amma SEÇİLMƏLİDİR, yazı səhvi ilə əldə edilməməlidir.
+        _sifir_bir_araliginda(f"{prefiks}SOFT_FLOOR_MARGIN", soft_floor_margin)
 
 
 def _env_opt_int(name: str) -> int | None:
@@ -343,19 +423,11 @@ class Settings:
             raise ConfigError("REPEATS ən azı 1 olmalıdır.")
         if self.judge_max_retries < 0:
             raise ConfigError("JUDGE_MAX_RETRIES mənfi ola bilməz.")
-        if self.retrieval_top_k is not None and self.retrieval_top_k <= 0:
-            raise ConfigError("RETRIEVAL_TOP_K müsbət olmalıdır.")
-        # Astana KOSİNUS OXŞARLIĞI şkalasındadır (0-1), məsafə deyil. Səhv
-        # şkalada verilmiş rəqəm (məsələn 1.8) SUT-da səssizcə «heç nə keçmir»
-        # davranışına çevrilir və bütün case-lər imtina ilə bitər — bunu run
-        # bitdikdən sonra pass-rate düşməsi kimi oxumaq asan səhvdir.
-        if self.retrieval_threshold is not None and not 0.0 <= self.retrieval_threshold <= 1.0:
-            raise ConfigError(
-                f"RETRIEVAL_THRESHOLD kosinus oxşarlığı şkalasındadır (0-1), "
-                f"verilib: {self.retrieval_threshold}."
-            )
-        if self.retrieval_soft_floor_margin is not None and self.retrieval_soft_floor_margin < 0:
-            raise ConfigError("RETRIEVAL_SOFT_FLOOR_MARGIN mənfi ola bilməz.")
+        yoxla_retrieval(
+            top_k=self.retrieval_top_k,
+            threshold=self.retrieval_threshold,
+            soft_floor_margin=self.retrieval_soft_floor_margin,
+        )
 
     def retrieval_overrides(self) -> dict[str, Any]:
         """`rag.config.Settings.load(**overrides)`-a ötürüləcək sahələr.
@@ -427,7 +499,12 @@ class Settings:
 
     @property
     def config_hash(self) -> str:
-        payload = json.dumps(self.public_dict(), sort_keys=True, ensure_ascii=False)
+        # `allow_nan=False` — hash-in özü də etibarlı JSON üzərindən
+        # hesablanmalıdır. Bu, `yoxla_retrieval`-ın təkrarı deyil: dəyər ora
+        # çatmayan yollarla da gələ bilər (məsələn birbaşa `Settings(...)`).
+        payload = json.dumps(
+            self.public_dict(), sort_keys=True, ensure_ascii=False, allow_nan=False
+        )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
     @property

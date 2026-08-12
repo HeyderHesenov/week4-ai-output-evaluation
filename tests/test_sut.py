@@ -332,3 +332,51 @@ def test_pipeline_settings_DASIMIRSA_uydurulmus_deyer_yazilmir() -> None:
     """Test ikilisi `settings` daşımaya bilər — o halda sahə BOŞ qalır."""
     sut, _ = build_sut()
     assert sut.preflight().retrieval == {}
+
+
+# --- indeks barmaq izi (2026-08-12) ----------------------------------------
+
+
+def test_barmaq_izi_KOLLEKSIYANIN_ID_lerinden_hesablanir() -> None:
+    """`chunk_id` = sha1(mənbə|mətn), yəni ID-lər məzmundan törəyir:
+    fərqli chunking → fərqli mətn → fərqli barmaq izi."""
+    from eval.sut import index_fingerprint
+
+    assert index_fingerprint(["b", "a"]) == index_fingerprint(["a", "b"])
+    assert index_fingerprint(["a", "b"]) != index_fingerprint(["a", "c"])
+    assert len(index_fingerprint(["a"])) == 16
+
+
+def test_barmaq_izi_OXUNMASA_preflight_dayanmir_sahe_bos_qalir() -> None:
+    """Barmaq izi SÜBUTDUR, qapı deyil.
+
+    Oxuna bilməsə uydurulmuş dəyər yazmaqdansa boşluğu etiraf etmək
+    doğrudur — hesabat onda «təsdiqlənə bilmir» deyir.
+    """
+    sut, _ = build_sut()
+    info = sut.preflight()          # FakePipeline `_store` daşımır
+    assert info.index == {} or "sha256" not in info.index
+    assert info.commit == GOOD_COMMIT, "preflight yenə də uğurla bitməlidir"
+
+
+def test_barmaq_izi_pipeline_dan_OXUNUR() -> None:
+    from eval.sut import index_fingerprint
+
+    class _Chroma:
+        def get(self, include):
+            return {"ids": ["c2", "c1"]}
+
+    class _Store:
+        _store = _Chroma()
+
+        def count(self) -> int:
+            return 2
+
+    sut, made = build_sut()
+    sut.preflight()
+    made["pipeline"].store = _Store()
+    sut._info = None
+
+    index = sut.preflight().index
+    assert index["sha256"] == index_fingerprint(["c1", "c2"])
+    assert index["id_count"] == 2

@@ -32,6 +32,9 @@ pip install "langchain>=0.3,<0.4" "langchain-community>=0.3,<0.4" \
             "langchain-openai>=0.2,<0.4" "langchain-chroma>=0.2,<0.3" \
             "langchain-text-splitters>=0.3,<0.4" "pypdf>=5.0"
 (cd vendor/week2-rag-document-qa && python -m rag.cli ingest --path data/)
+# Qeyd: bu, 800/200 baseline indeksini qurur. Ölçmə nəticəsi CHUNK_SIZE=500
+# tövsiyə edir (logs/retrieval_experiments.md) — onu tətbiq etmək üçün
+# .env-də CHUNK_SIZE=500, CHUNK_OVERLAP=150 verib yenidən ingest edin.
 
 # 5. Bölgünü möhürlə və işlət
 python -m eval.cli seal-split
@@ -58,6 +61,30 @@ python -m eval.cli report <run_id>
 
 **Exit kodları:** `0` uğur · `1` konfiqurasiya/istifadəçi xətası ·
 `2` dev/holdout intizamının pozulması.
+
+### Ucuz ölçmə alətləri (`tools/`)
+
+Bunlar `eval.cli` alt-əmri DEYİL — ayrıca skriptlərdir, çünki nə generasiya,
+nə hakim çağırırlar: yalnız sorğu embedding-i işlədirlər (~$0.001) və
+retrieval qatı haqqında sual cavablandırırlar. Pullu run yalnız bu süzgəcdən
+keçən namizədə xərclənir.
+
+| Alət | Nə edir |
+|---|---|
+| `tools/retrieval_sweep.py` | Qapı parametrlərini sweep edir (örtük / sızma) |
+| `tools/retrieval_experiments.py` | Chunking, embedding modeli, sorğu genişləndirmə |
+
+Hər icra `logs/probes/<probe_id>/` qovluğuna yazır (`manifest.json` +
+`rows.jsonl` + `summary.md`), **mövcud qovluğun üstünə yazmır** və argv-ni
+artefaktda saxlayır — maşına aid mütləq yollar çıxarılmaqla: repo daxilindəki
+yol nisbi yazılır, kənardakı (məsələn müvəqqəti indeks qovluğu) `<müvəqqəti-qovluq>`
+ilə əvəzlənir, ölçmə parametrlərinə isə toxunulmur. Sənəddəki nəticə cədvəlləri `summary.md`-dən köçürülür;
+`tests/test_logs_iddialari.py` hər cədvəl sətrinin artefaktda mövcudluğunu
+yoxlayır.
+
+**Alət exit kodları:** `1` arqument yoxlaması (SUT-a çatmadan) ·
+`2` paylaşılan indeks qovluğu · `3` retrieval büdcəsi baseline-dan artıq ·
+`4` mövcud indeks gözlənilən parametrlərlə qurulmayıb.
 
 `2`-nin ayrıca kod olması CI üçündür: çirklənmiş qiymətləndirmə adi
 xətadan fərqli hadisədir — adi xəta run-ı dayandırır, çirklənmə isə artıq
@@ -164,9 +191,12 @@ Dürüstlük tam olsun deyə bunlar hesabatda hər dəfə çap olunur:
   rəqəm hesabatı «tam» göstərərdi.
 - **OpenAI qiymətləri** `verified: false` işarəlidir — canlı qiymət
   səhifəsinə qarşı yoxlanmayıb; hesabatda banner çıxır.
-- **Qapının atdığı chunk** cavab verilmiş halda görünmür (SUT yalnız qəbul
-  ediləni qaytarır) — belə hallar `retrieval_miss` kimi görünür.
-- **`runs/` altındakı 4 mövcud manifest `sut_path`-i MÜTLƏQ yol kimi
+- **Qapının atdığı chunk-ın MƏTNİ** görünmür (SUT yalnız qəbul ediləni
+  qaytarır) — belə hallar `retrieval_miss` kimi görünür. Balları isə
+  görünür: `RetrievalCall.scores` çəkilən bütün chunk-ların balını azalan
+  sırada saxlayır, ona görə «astananı nə qədər endirmək lazımdır?» sualına
+  saxlanmış artefaktdan cavab vermək olur.
+- **`runs/` altındakı ilk 4 manifest `sut_path`-i MÜTLƏQ yol kimi
   saxlayır.** Sonrakı run-lar onu repo-ya nisbi yazır (`config_hash` beləliklə
   maşından asılı olmur). Köhnə manifestlər QƏSDƏN redaktə edilməyib: `config_hash`
   məhz həmin config bloku üzərindən hesablanıb, yolu sonradan dəyişmək

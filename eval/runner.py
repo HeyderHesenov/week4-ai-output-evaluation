@@ -253,6 +253,10 @@ class Runner:
             # oxunandır, ona görə «override verməmişik, amma SUT nə işlədib?»
             # sualının cavabı artefaktda qalır.
             "sut_retrieval": dict(info.retrieval),
+            # NİYYƏT (`sut_retrieval.chunk_size`) İLƏ SÜBUTU (barmaq izi)
+            # ayrı saxlayırıq: birincisi indeksi təkrar qurmaq üçün lazımdır,
+            # ikincisi isə hansı indeksin HƏQİQƏTƏN sorğulandığını göstərir.
+            "sut_index": dict(info.index),
             "config_hash": self.settings.config_hash,
             "config": self.settings.public_dict(),
             # --- ölçülmüş çirklənmə riski: iddia yox, rəqəm ---

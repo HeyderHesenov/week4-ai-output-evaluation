@@ -1,0 +1,24 @@
+{
+  "probe_tool": "eksperiment",
+  "argv": [
+    "python",
+    "tools/retrieval_experiments.py",
+    "--workdir",
+    "<müvəqqəti-qovluq>"
+  ],
+  "started_at": "20260812T191757Z",
+  "harness_commit": "8146a7f2378f8ad855298bc2db20064c6f626e50",
+  "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
+  "config_hash": "ac1f04888017928e",
+  "dataset_sha256": "587dae5440b1ca981b21d70453ee472e52d9fba1898fe868542575c8466b27dd",
+  "split": "dev",
+  "gate": {
+    "relevance_threshold": 0.42,
+    "soft_floor_margin": 0.1,
+    "lexical_threshold": 0.35
+  },
+  "baseline_retrieval_budget": 48,
+  "unmatched_budget": [
+    "genişləndirmə (büdcə sərbəst)"
+  ]
+}

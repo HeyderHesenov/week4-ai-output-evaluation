@@ -200,3 +200,59 @@ def test_retrieval_top_k_SIFIR_reddedilir() -> None:
 def test_retrieval_soft_floor_margin_MENFI_reddedilir() -> None:
     with pytest.raises(ConfigError, match="SOFT_FLOOR_MARGIN"):
         make_settings(retrieval_soft_floor_margin=-0.05)
+
+
+# --- retrieval hədləri: sonlu ədəd və yuxarı hədd (2026-08-12 düzəlişi) -----
+
+
+def test_soft_floor_margin_NaN_REDD_edilir() -> None:
+    """NaN üç qat minadır — ən pisi odur ki, heç biri xəta kimi görünmür.
+
+    NaN ilə hər müqayisə False verir, yəni qapı səssizcə HƏR ŞEYİ rədd edir
+    və nəticə «sistem imtina edir» kimi oxunur. Üstəlik `json.dumps` onu
+    çılpaq `NaN` yazır — commit edilmiş manifest JSON olmaqdan çıxır.
+    """
+    with pytest.raises(ConfigError, match="sonlu"):
+        make_settings(retrieval_soft_floor_margin=float("nan"))
+
+
+def test_soft_floor_margin_SONSUZLUQ_redd_edilir() -> None:
+    with pytest.raises(ConfigError, match="sonlu"):
+        make_settings(retrieval_soft_floor_margin=float("inf"))
+
+
+def test_soft_floor_margin_BIRDEN_boyuk_redd_edilir() -> None:
+    """Marja EYNİ 0-1 kosinus şkalasından çıxılır — 5.0 heç bir nöqtəyə uyğun
+    gəlmir. Əvvəlki yoxlama yalnız mənfi dəyəri tuturdu."""
+    with pytest.raises(ConfigError, match="SOFT_FLOOR_MARGIN"):
+        make_settings(retrieval_soft_floor_margin=5.0)
+
+
+def test_threshold_NaN_redd_edilir() -> None:
+    with pytest.raises(ConfigError, match="sonlu"):
+        make_settings(retrieval_threshold=float("nan"))
+
+
+def test_top_k_YUXARI_hedd() -> None:
+    """k > 50 retrieval deyil, korpusun tamamını prompta tökməkdir."""
+    with pytest.raises(ConfigError, match="ən çox"):
+        make_settings(retrieval_top_k=100_000)
+
+
+def test_public_dict_HEMISE_etibarli_JSON_verir() -> None:
+    """`config_hash` etibarsız payload üzərindən hesablanmamalıdır."""
+    payload = json.dumps(make_settings().public_dict(), allow_nan=False)
+    assert json.loads(payload)
+
+
+def test_yoxla_retrieval_LEKSIK_astananı_da_yoxlayir() -> None:
+    """`tools/` leksik oxu da sweep edir — hədd orada da tətbiq olunmalıdır.
+
+    Bu parametr `Settings` sahəsi deyil, ona görə yalnız funksiya səviyyəsində
+    yoxlanır; alət onu birbaşa çağırır.
+    """
+    from eval.config import yoxla_retrieval
+
+    yoxla_retrieval(lexical_threshold=0.35)  # keçməlidir
+    with pytest.raises(ConfigError, match="LEXICAL_THRESHOLD"):
+        yoxla_retrieval(lexical_threshold=1.8)
