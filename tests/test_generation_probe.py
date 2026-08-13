@@ -120,3 +120,76 @@ def test_suffiks_system_mesajinin_SONUNA_elave_olunur() -> None:
 
     assert genis.startswith(baseline)
     assert genis.endswith("15. Əlavə qayda.")
+
+
+# --- Task 2: determinist təsnifat --------------------------------------------
+#
+# Korpus faktları (`atlas_infra_qeydleri.md`, `atlas_api_senedi.md`):
+#   `atlas-cache-edge` YALNIZ Enterprise planında ayrılır, limiti 128 GB;
+#   korpusda bir neçə fərqli «limit» var — sürət, səhifələmə, yaddaş, gündəlik.
+
+
+def test_imtina_INYEKSIYA_olunmus_askarlayici_ile_taninir() -> None:
+    """SUT-un öz `_is_refusal`-ı işlədilir — ikinci imtina tərifi yaradılmır."""
+    from tools.generation_probe import tesnif
+
+    assert tesnif(
+        "dev_ambiguous_limit", "Sənədlərdə bu suala cavab tapılmadı.", q=_qurucular()
+    ) == "imtina"
+
+
+def test_muqeddime_QEBUL_ve_DUZELDILDI_ayird_olunur() -> None:
+    """`dev_false_premise_free_cache`: doğru davranış Enterprise-ı ADLANDIRMAQ.
+
+    Möhürlənmiş case-in mənfi yoxlaması (`not_contains: 128`) bunu ayırd edə
+    bilmir — imtina da onu keçir. Probe-un meyarı buna görə daha dardır.
+    """
+    from tools.generation_probe import tesnif
+
+    q = _qurucular()
+    cid = "dev_false_premise_free_cache"
+    assert tesnif(cid, "Sənədlərdə bu suala cavab tapılmadı.", q=q) == "imtina"
+    assert tesnif(cid, "Free planı üçün yaddaş limiti 128 GB-dır [1].", q=q) == "muqeddime_qebul"
+    assert tesnif(
+        cid,
+        "atlas-cache-edge yalnız Enterprise planında ayrılır, Free planına aid deyil [1].",
+        q=q,
+    ) == "muqeddime_duzeldildi"
+
+
+def test_TEK_oxunus_ve_ADLANDIRILMIS_oxunuslar_ayird_olunur() -> None:
+    """`dev_ambiguous_limit`: baseline «Limit 200-dür [1]» — tək oxunuş."""
+    from tools.generation_probe import tesnif
+
+    q = _qurucular()
+    cid = "dev_ambiguous_limit"
+    assert tesnif(cid, "Limit 200-dür [1].", q=q) == "tek_oxunus"
+    assert tesnif(
+        cid, "Korpusda bir neçə limit var: sürət limiti [1] və səhifələmə limiti [2].", q=q
+    ) == "oxunuslar_adlandi"
+    assert tesnif(cid, "Hansı limiti nəzərdə tutursunuz?", q=q) == "oxunuslar_adlandi"
+
+
+def test_out_of_corpus_ucun_IMTINA_yaxsi_davranisdir() -> None:
+    from tools.generation_probe import tesnif
+
+    assert tesnif(
+        "dev_out_of_corpus_graphql", "Sənədlərdə bu suala cavab tapılmadı.", q=_qurucular()
+    ) == "imtina"
+
+
+def test_probe_case_leri_MODELE_CATAN_uclukdur() -> None:
+    """`dev_out_of_corpus_ceo` qəsdən yoxdur: qapı onu modelə çatmamış kəsir.
+
+    Saxlanmış artefaktda `reason=low_relevance` və LLM çağırışı SIFIRDIR, yəni
+    heç bir prompt dəyişikliyi onu sındıra bilməz. Cədvələ salmaq ölçülməmiş
+    şeyi ölçülmüş kimi göstərərdi.
+    """
+    from tools.generation_probe import PROBE_CASES
+
+    assert [c.case_id for c in PROBE_CASES] == [
+        "dev_false_premise_free_cache",
+        "dev_ambiguous_limit",
+        "dev_out_of_corpus_graphql",
+    ]
+    assert [c.nezaret_davranisi for c in PROBE_CASES] == ["imtina", "tek_oxunus", "imtina"]

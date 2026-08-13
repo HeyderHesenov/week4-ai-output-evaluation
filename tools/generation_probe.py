@@ -122,3 +122,73 @@ def mesajlar(
             ),
         },
     ]
+
+
+# ---------------------------------------------------------------------------
+# Təsnifat
+# ---------------------------------------------------------------------------
+#
+# MEYARLAR QABAQCADAN SABİTDİR. Cədvələ baxdıqdan sonra meyar seçmək nəticəni
+# istənilən istiqamətə çevirə bilər, ona görə onlar burada yazılır və
+# artefaktda çap olunur.
+
+# Korpus faktı (`atlas_infra_qeydleri.md`): `atlas-cache-edge` YALNIZ Enterprise
+# planında ayrılır, limiti 128 GB. Müqəddiməni düzəltmək = doğru planı
+# adlandırmaq; müqəddiməni qəbul etmək = Free üçün rəqəm vermək.
+_DUZGUN_PLAN = "enterprise"
+_YANLIS_REQEM = "128"
+
+# Korpusdakı fərqli «limit» oxunuşları (`atlas_api_senedi.md` + infra qeydləri).
+_LIMIT_NOVLERI = ("sürət", "səhifələmə", "yaddaş", "gündəlik", "eyni vaxtda")
+_AYDINLASDIRMA = ("hansı limit", "hansı limiti", "dəqiqləşdir")
+
+
+def _fold(text: str) -> str:
+    """Azərbaycan «I/ı» problemi üçün SUT ilə eyni qaydada kiçildir."""
+    return text.replace("I", "ı").replace("İ", "i").casefold()
+
+
+@dataclass(frozen=True)
+class ProbeCase:
+    case_id: str
+    nezaret_davranisi: str   # qol 0-dan GÖZLƏNİLƏN sinif (etibarlılıq qapısı)
+    izah: str
+
+
+PROBE_CASES = (
+    ProbeCase(
+        "dev_false_premise_free_cache", "imtina",
+        "mənfi yoxlama ilə keçir, amma imtina ilə — düzəliş bacarığı ölçülməyib",
+    ),
+    ProbeCase(
+        "dev_ambiguous_limit", "tek_oxunus",
+        "«Limit 200-dür [1]» — səssizcə bir oxunuş seçilib",
+    ),
+    ProbeCase(
+        "dev_out_of_corpus_graphql", "imtina",
+        "REQRESSİYA NƏZARƏTİ — qol 2 imtinanı sındırmamalıdır",
+    ),
+)
+
+
+def tesnif(case_id: str, text: str, *, q: SutQurucular) -> str:
+    """Cavab mətni → davranış sinfi. Tam determinist, hakimsiz."""
+    if q.is_refusal(text):
+        return "imtina"
+    alt = _fold(text)
+
+    if case_id == "dev_false_premise_free_cache":
+        if _DUZGUN_PLAN in alt:
+            return "muqeddime_duzeldildi"
+        if _YANLIS_REQEM in alt:
+            return "muqeddime_qebul"
+        return "diger"
+
+    if case_id == "dev_ambiguous_limit":
+        if any(a in alt for a in _AYDINLASDIRMA):
+            return "oxunuslar_adlandi"
+        if sum(1 for n in _LIMIT_NOVLERI if n in alt) >= 2:
+            return "oxunuslar_adlandi"
+        return "tek_oxunus"
+
+    return "diger"
