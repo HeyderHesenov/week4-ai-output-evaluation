@@ -42,7 +42,6 @@ DİQQƏT — YALNIZ DEV.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +64,7 @@ from probe_common import (  # noqa: E402
 from eval.config import Settings, yoxla_retrieval  # noqa: E402
 from eval.dataset import load_dataset  # noqa: E402
 from eval.errors import ConfigError  # noqa: E402
+from eval.sut import index_fingerprint  # noqa: E402
 
 # Qapı — bütün eksperimentlərdə eyni qalır (SUT defaultları).
 GATE = {"relevance_threshold": 0.42, "soft_floor_margin": 0.10, "lexical_threshold": 0.35}
@@ -169,18 +169,12 @@ def sub_queries(question: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def index_fingerprint(ids: Sequence[str]) -> str:
-    """Sıralanmış ID dəstinin sha256-sı (16 simvol).
-
-    `rag.ingest._chunk_id` = sha1(source|text) olduğu üçün ID-lər MƏZMUNDAN
-    törəyir: fərqli chunking = fərqli mətn = fərqli ID dəsti = fərqli
-    barmaq izi. Şəbəkəsiz və pulsuzdur.
-    """
-    h = hashlib.sha256()
-    for cid in sorted(ids):
-        h.update(cid.encode("utf-8"))
-        h.update(b"\n")
-    return h.hexdigest()[:16]
+# BARMAQ İZİ `eval.sut`-DAN GƏLİR, KOPYALANMIR.
+#
+# Əvvəllər eyni düstur burada ikinci dəfə yazılmışdı və «probe artefaktı ilə
+# run manifesti birləşdirilə bilir» iddiasını yalnız bir ŞƏRH qoruyurdu: iki
+# nüsxədən biri dəyişsə, birləşdirmə səssizcə yalan olardı. `eval.sut` heç bir
+# rag/langchain import-u gətirmir, ona görə bu import şəbəkəsizliyi pozmur.
 
 
 @dataclass(frozen=True)
@@ -261,11 +255,35 @@ def ensure_index(settings: Settings, sut_settings, *, store=None) -> IndexInfo:
 # ---------------------------------------------------------------------------
 
 
+def matched_sorgular(sorgular: Sequence[str], *, top_k: int) -> tuple[list[str], int]:
+    """`matched` rejim üçün sorğu siyahısını büdcəyə SIĞDIRAR.
+
+    NİYƏ KƏSMƏ LAZIMDIR: `k = max(1, top_k // len(sorgular))` tək başına
+    invariantı SAXLAMIR. `k` bir-dən aşağı düşə bilmir, ona görə sorğu sayı
+    `top_k`-nı keçəndə cəm da keçir: `top_k=4`, 5 alt-sorğu → `k=1`, büdcə 5.
+    Nəticədə «matched» adlanan sətir `✗ BÜDCƏ ARTIQ` damğası alırdı — yəni ad
+    ilə davranış ziddiyyətdə idi. (Cari dev korpusunda baş vermir: yalnız 2
+    sual bölünür, hərəsi 3-ə. Çap olunmuş heç bir rəqəm bundan asılı deyil.)
+
+    TAM SUAL HƏMİŞƏ QALIR — `sub_queries`-in 3-cü qaydası. Kəsmə sondan
+    aparılır, çünki bölgü nə qədər dərinə getsə, parça bir o qədər dar olur.
+
+    Atılanların sayı QAYTARILIR: səssiz kəsmə «5 alt-sorğu ölçüldü» təəssüratı
+    yaradardı, halbuki yuxarıdakı nümunədə 4-ü ölçülüb.
+    """
+    if len(sorgular) <= top_k:
+        return list(sorgular), 0
+    return list(sorgular[:top_k]), len(sorgular) - top_k
+
+
 def evaluate(pipeline, question: str, gold: set[str], *, expand: bool, budget_mode: str) -> dict:
     sorgular = sub_queries(question) if expand else [question]
     tam_k = pipeline.settings.top_k
+    atilan = 0
     if budget_mode == "matched":
-        # Büdcə sorğular arasında BÖLÜNÜR: cəm baseline-dan böyük ola bilmir.
+        # Büdcə sorğular arasında BÖLÜNÜR və siyahı büdcəyə sığdırılır:
+        # cəm baseline-dan böyük ola bilmir.
+        sorgular, atilan = matched_sorgular(sorgular, top_k=tam_k)
         k = max(1, tam_k // len(sorgular))
     else:
         k = tam_k
@@ -283,6 +301,7 @@ def evaluate(pipeline, question: str, gold: set[str], *, expand: bool, budget_mo
     got = {Path(str(getattr(c, "source", ""))).name for c in accepted}
     return {
         "queries": len(sorgular),
+        "dropped_subqueries": atilan,
         "k_per_query": k,
         "retrieval_budget": len(sorgular) * k,
         "retrieved": retrieved_total,
@@ -298,8 +317,14 @@ def run(settings: Settings, exp: Experiment, cases, workdir: Path) -> dict:
     from rag.store import VectorStore
 
     sut_settings = sut_settings_for(settings, exp, workdir / exp.slug)
-    index = ensure_index(settings, sut_settings)
-    pipeline = RagPipeline(sut_settings, store=VectorStore(sut_settings), llm=object())
+    # BİR STORE, İKİ İSTİFADƏ. Əvvəllər `ensure_index` özü bir `VectorStore`
+    # qurur, sonra `RagPipeline` üçün EYNİ `persist_dir` üzərində ikincisi
+    # yaradılırdı — 9 eksperimentə 18 chroma klienti. Bəzi langchain-chroma
+    # versiyaları bir yol üçün ziddiyyətli klient konfiqurasiyasında istisna
+    # qaldırır, və iki klient eyni kolleksiyanı fərqli anlarda görə bilər.
+    store = VectorStore(sut_settings)
+    index = ensure_index(settings, sut_settings, store=store)
+    pipeline = RagPipeline(sut_settings, store=store, llm=object())
 
     per_case, covered, total, leaked, leak_total, budce = {}, 0, 0, 0, 0, 0
     for case in cases:
@@ -353,6 +378,31 @@ EXPERIMENTS = [
 ]
 
 
+def swept_axes(experiments: Sequence[Experiment] = EXPERIMENTS) -> list[str]:
+    """Dəstin FAKTİKİ olaraq tərpətdiyi oxlar — `probe_id`-yə düşür.
+
+    Əvvəllər siyahı `probe_id` çağırışında sabit yazılmışdı, ona görə
+    `EXPERIMENTS`-dən bir ox çıxarılsa belə qovluq adı onu iddia etməyə davam
+    edərdi — yəni artefaktın adı run-un etmədiyi ölçməni vəd edərdi. Sweep
+    aləti bunu düzgün edir (`tools/retrieval_sweep.py:swept_axes`); burada da
+    eyni qayda.
+
+    Baseline (heç nə dəyişməyən sətir) ox sayılmır: o, müqayisə nöqtəsidir.
+    """
+    esas = Experiment("baseline")
+    oxlar = []
+    if any(
+        e.chunk_size != esas.chunk_size or e.chunk_overlap != esas.chunk_overlap
+        for e in experiments
+    ):
+        oxlar.append("chunking")
+    if any(e.embedding_model for e in experiments):
+        oxlar.append("embedding")
+    if any(e.expand_queries for e in experiments):
+        oxlar.append("genişləndirmə")
+    return oxlar
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
@@ -390,21 +440,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     probes_dir = args.probes_dir or (settings.logs_dir / PROBES_DIRNAME)
     writer, kimlik = probe_yarat(
         alet="eksperiment",
-        oxlar=["chunking", "embedding", "genişləndirmə"],
+        oxlar=swept_axes(),
         argv=["python", "tools/retrieval_experiments.py", *argv],
         settings=settings,
         dataset=dataset,
         probes_dir=probes_dir,
     )
 
+    # ÖLÇMƏ ARTEFAKT MÜQAVİLƏSİ İÇİNDƏ APARILIR.
+    #
+    # Qovluq artıq açılıb və `status: yarımçıq` manifesti diskdədir. Hansı
+    # yolla çıxsaq da (uğur, `ConfigError`, chroma xətası, Ctrl-C) manifest
+    # vəziyyəti DEYİR — səssiz yarımçıq qovluq qalmır.
+    try:
+        return _olc(writer, kimlik, settings, cases, args)
+    except ConfigError as exc:
+        writer.mark_failed(f"ConfigError: {exc}")
+        print(f"İndeks xətası: {exc}", file=sys.stderr)
+        return 4
+    except BaseException as exc:  # noqa: BLE001 — KeyboardInterrupt da daxil
+        writer.mark_failed(type(exc).__name__)
+        raise
+
+
+def _olc(writer, kimlik: dict, settings: Settings, cases, args) -> int:
     print(f"{len(cases)} dev case × {len(EXPERIMENTS)} eksperiment → {writer.paths.root}")
     print(f"qapı sabitdir: {GATE}\n")
 
-    try:
-        results = [run(settings, exp, cases, args.workdir) for exp in EXPERIMENTS]
-    except ConfigError as exc:
-        print(f"İndeks xətası: {exc}", file=sys.stderr)
-        return 4
+    results = [run(settings, exp, cases, args.workdir) for exp in EXPERIMENTS]
 
     baseline_budce = results[0]["retrieval_budget"]
     setirler, uygunsuz = [], []

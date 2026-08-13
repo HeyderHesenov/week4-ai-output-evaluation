@@ -502,9 +502,19 @@ class Settings:
         # `allow_nan=False` — hash-in özü də etibarlı JSON üzərindən
         # hesablanmalıdır. Bu, `yoxla_retrieval`-ın təkrarı deyil: dəyər ora
         # çatmayan yollarla da gələ bilər (məsələn birbaşa `Settings(...)`).
-        payload = json.dumps(
-            self.public_dict(), sort_keys=True, ensure_ascii=False, allow_nan=False
-        )
+        try:
+            payload = json.dumps(
+                self.public_dict(), sort_keys=True, ensure_ascii=False, allow_nan=False
+            )
+        except ValueError as exc:
+            # Çılpaq `ValueError` bu modulun müqaviləsini pozurdu: səhv
+            # konfiqurasiya ilə bağlı hər digər yol `ConfigError` qaldırır və
+            # CLI onu oxunaqlı mesaja çevirir. `eval/artifacts.py:_json` eyni
+            # tərcüməni artıq edir — burada da eyni olmalıdır.
+            raise ConfigError(
+                f"`config_hash` hesablana bilmir — konfiqurasiyada NaN/Infinity: {exc}\n"
+                "RETRIEVAL_* dəyərlərini yoxlayın."
+            ) from None
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
     @property

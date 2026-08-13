@@ -400,12 +400,32 @@ def test_sut_chunk_count_ferqi_TUTULUR_kohne_artefaktla_da() -> None:
     assert "19 → 29" in lines[0]
 
 
-def test_eyni_barmaq_izi_XEBERDARLIQ_vermir() -> None:
+def test_eyni_barmaq_izi_VE_eyni_qapi_XEBERDARLIQ_vermir() -> None:
+    """Susmaq üçün İKİSİ DƏ lazımdır: eyni mətnlər VƏ eyni qapı.
+
+    2026-08-12 icmalınadək bu test `sut_retrieval`-sız manifest ötürürdü və
+    məhz onunla baqı kilidləyirdi: barmaq izi uyğun gələn kimi funksiya
+    `return []` edirdi, ona görə qapı fərqi olan hal HEÇ TEST EDİLMİRDİ.
+    İndi blok hər iki tərəfdə var və eynidir — susmaq doğrudur.
+    """
+    from eval.report import _config_diff_lines
+
+    same = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
+            "sut_index": {"sha256": "aaaa"},
+            "sut_retrieval": {"top_k": 4, "lexical_threshold": 0.35}}
+    assert _config_diff_lines(same, same) == []
+
+
+def test_eyni_barmaq_izi_amma_sut_retrieval_YOXDURSA_ehtiyat_deyilir() -> None:
+    """Uyğun barmaq izi «eyni sistem» demək deyil — bunu açıq demək lazımdır."""
     from eval.report import _config_diff_lines
 
     same = {"config_hash": "a", "config": {}, "sut_chunk_count": 29,
             "sut_index": {"sha256": "aaaa"}}
-    assert _config_diff_lines(same, same) == []
+    lines = _config_diff_lines(same, same)
+    assert len(lines) == 1
+    assert "müqayisə edilə bilmir" in lines[0]
+    assert "MƏTNLƏR eynidir" in lines[0]
 
 
 def test_hec_bir_sahid_yoxdursa_TESDIQLENE_BILMIR_deyilir() -> None:

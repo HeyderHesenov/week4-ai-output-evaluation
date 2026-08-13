@@ -192,6 +192,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         probes_dir=probes_dir,
     )
 
+    # Eksperiment aləti ilə EYNİ müqavilə: qovluq açılıb, `status: yarımçıq`
+    # manifesti diskdədir; hansı yolla çıxsaq da vəziyyət manifestdə deyilir.
+    try:
+        return _sweep_et(writer, kimlik, settings, cases, args)
+    except BaseException as exc:  # noqa: BLE001 — KeyboardInterrupt da daxil
+        writer.mark_failed(type(exc).__name__)
+        raise
+
+
+def _sweep_et(writer, kimlik: dict, settings: Settings, cases, args) -> int:
     grid = [
         Candidate(k, t, m, lex)
         for k, t, m, lex in itertools.product(

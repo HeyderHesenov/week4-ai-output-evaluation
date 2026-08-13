@@ -75,6 +75,14 @@ def test_iddia_bloku_ARTEFAKTDA_movcuddur(md: Path, probe_id: str, govde: str) -
         f"{md.name}: `{probe_id}` artefaktı yoxdur ({summary}). "
         "Sənəd mövcud olmayan sübuta istinad edir."
     )
+    # Kəsilmiş ölçmənin qismən nəticələri sitat gətirilə bilməz: sətirlər
+    # doğru ola bilər, amma cədvəl tamamlanmayıb və hansı hissəsinin
+    # çatışdığını yalnız manifest bilir.
+    status = _probe_manifesti(PROBES / probe_id).get("status", _KOHNE_STATUS)
+    assert status == "tamam", (
+        f"{md.name}: `{probe_id}` artefaktının statusu `{status}` — "
+        "yarımçıq ölçməyə istinad edilir."
+    )
     metn = summary.read_text(encoding="utf-8")
 
     for setir in (s.strip() for s in govde.splitlines()):
@@ -87,14 +95,37 @@ def test_iddia_bloku_ARTEFAKTDA_movcuddur(md: Path, probe_id: str, govde: str) -
         )
 
 
+# `status` 2026-08-13-dən yazılır. Ondan əvvəlki artefaktlarda manifest YALNIZ
+# uğurlu sonda yaranırdı, ona görə manifestin mövcudluğu tamamlığın sübutu idi
+# — həmin artefaktlar `tamam` sayılır. Onları əl ilə redaktə etmək daha pis
+# olardı: artefakt yazıldıqdan sonra toxunulmayan sənəddir.
+_KOHNE_STATUS = "tamam"
+
+
+def _probe_manifesti(qovluq: Path) -> dict:
+    return json.loads((qovluq / "manifest.json").read_text(encoding="utf-8"))
+
+
 def test_probe_artefaktlarinin_hamisinda_manifest_var() -> None:
+    """Manifest artıq ilk andan yazılır, ona görə qovluq susqun qala bilmir.
+
+    Əvvəllər manifest ən SONDA yazılırdı: Ctrl-C və ya `ConfigError` kimliksiz
+    qovluq qoyurdu və bu test hamı üçün qırmızı olurdu, ta ki kimsə qovluğu əl
+    ilə silənə qədər. İndi kəsilmiş icra da kim olduğunu deyir — `status`
+    sahəsi vəziyyəti adlandırır və natamam artefakt dəsti QIRMIZI ETMİR
+    (yarımçıq qalmaq səhv deyil; yarımçıq nəticəni tam kimi göstərmək səhvdir,
+    onu isə aşağıdakı iddia testi tutur).
+    """
     if not PROBES.exists():
         pytest.skip("probe artefaktı yoxdur")
     for qovluq in sorted(p for p in PROBES.iterdir() if p.is_dir()):
         assert (qovluq / "manifest.json").exists(), f"{qovluq.name}: manifest yoxdur"
-        kimlik = json.loads((qovluq / "manifest.json").read_text(encoding="utf-8"))
+        kimlik = _probe_manifesti(qovluq)
         assert kimlik.get("argv"), f"{qovluq.name}: argv qeyd olunmayıb"
         assert kimlik.get("started_at"), f"{qovluq.name}: vaxt qeyd olunmayıb"
+        assert kimlik.get("status", _KOHNE_STATUS) in {
+            "yarımçıq", "tamam", "uğursuz",
+        }, f"{qovluq.name}: tanınmayan status"
 
 
 # Maşına aid mütləq yol prefiksləri. Repo daxilindəki yollar nisbi yazılır

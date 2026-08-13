@@ -146,7 +146,22 @@ class ProbePaths:
         return self.root / name
 
     def exists(self) -> bool:
-        return self.file(PROBE_MANIFEST).exists()
+        # QOVLUĞUN ÖZÜ, manifest yox. Manifest ən son yazılan fayl idi, ona
+        # görə yarımçıq kəsilmiş icradan qalan qovluq «mövcud deyil» sayılırdı
+        # və növbəti icra onun `rows.jsonl`-ına ƏLAVƏ yazırdı — bir artefaktda
+        # iki icranın sətirləri. Qovluq isə ilk andan mövcuddur.
+        return self.root.exists()
+
+
+# Probe artefaktının vəziyyəti — manifestdəki `status` sahəsi.
+#
+# Ölçmə kəsilə bilər: Ctrl-C, `ConfigError`, chroma xətası. Kəsilmiş icranın
+# qovluğu diskdə qalır və onu SƏSSİZ saxlamaq iki cür yalan yaradırdı —
+# yarımçıq rəqəmlər tam kimi oxunurdu, yaxud qovluq heç nə demədən bütün
+# testləri qırmızı edirdi. Status hər iki halı adlandırır.
+PROBE_YARIMCIQ = "yarımçıq"   # qovluq açılıb, ölçmə hələ bitməyib
+PROBE_TAMAM = "tamam"         # ölçmə bitib, nəticələr etibarlıdır
+PROBE_UGURSUZ = "uğursuz"     # ölçmə kəsilib; sətirlər natamamdır
 
 
 def probe_id(*, alet: str, oxlar: Sequence[str], indi: str) -> str:
@@ -254,9 +269,22 @@ class ProbeWriter:
     `RunWriter` ilə eyni zəmanətlər: hər sətir yazılan anda diskə düşür
     (kəsilən icra da oxunaqlı qalır) və açar dəyərləri redaksiya olunur —
     argv istifadəçidən gəlir, açar oraya səhvən düşə bilər.
+
+    KİMLİK İLK ANDA YAZILIR. Əvvəllər manifest yalnız uğurlu sonda yaranırdı,
+    yəni qovluq mövcud olub manifestsiz qala bilirdi: kim tərəfindən, hansı
+    əmrlə açıldığı bilinməzdi və `test_logs_iddialari` hamı üçün qırmızı
+    olurdu. İndi qovluq yarananda `status: yarımçıq` manifesti düşür və
+    icranın sonunda `tamam` (`write_manifest`) və ya `uğursuz`
+    (`mark_failed`) ilə əvəzlənir.
     """
 
-    def __init__(self, paths: ProbePaths, *, secrets: Sequence[str] = ()) -> None:
+    def __init__(
+        self,
+        paths: ProbePaths,
+        *,
+        secrets: Sequence[str] = (),
+        kimlik: dict[str, Any] | None = None,
+    ) -> None:
         if paths.exists():
             raise ArtifactError(
                 f"{paths.root} artıq mövcuddur — ölçmə qeydinin üstünə yazılmır.\n"
@@ -265,10 +293,26 @@ class ProbeWriter:
             )
         self.paths = paths
         self._secrets = tuple(s for s in secrets if s)
+        self._kimlik = dict(kimlik or {})
         self.paths.root.mkdir(parents=True, exist_ok=True)
+        self._status_yaz(PROBE_YARIMCIQ, self._kimlik)
 
     def write_manifest(self, manifest: dict[str, Any]) -> None:
-        self._write_text(PROBE_MANIFEST, _json(manifest, indent=2) + "\n")
+        """İcra UĞURLA bitdi — manifest `tamam` kimi möhürlənir."""
+        self._status_yaz(PROBE_TAMAM, manifest)
+
+    def mark_failed(self, error: str) -> None:
+        """İcra kəsildi — qovluq qalır, amma nəticələri natamam elan olunur.
+
+        Qovluq SİLİNMİR: yarımçıq sətirlər də «bu parametrlərdə nə baş verdi?»
+        sualına cavabdır, və silmək kəsilmənin özünü gizlədərdi.
+        """
+        self._status_yaz(PROBE_UGURSUZ, {**self._kimlik, "error": error})
+
+    def _status_yaz(self, status: str, manifest: dict[str, Any]) -> None:
+        self._write_text(
+            PROBE_MANIFEST, _json({**manifest, "status": status}, indent=2) + "\n"
+        )
 
     def append_row(self, row: dict[str, Any]) -> None:
         with self.paths.file(PROBE_ROWS).open("a", encoding="utf-8") as handle:
@@ -497,6 +541,11 @@ def _retrieval_from_json(raw: dict[str, Any]) -> RetrievalCall:
         returned=int(raw.get("returned", 0)),
         top_score=float(raw.get("top_score", 0.0)),
         query_chars=int(raw.get("query_chars", 0)),
+        # Dekoderdə UNUDULMUŞDU: `scores` yazılırdı, amma burada bərpa
+        # olunmadığı üçün dataclass default-u susmadan `()` verirdi. Sahənin
+        # bütün mənası saxlanmış artefaktdan astana sualına cavab verməkdir —
+        # oxunmayan sahə isə yazılmamış sahə ilə eynidir.
+        scores=tuple(float(x) for x in raw.get("scores") or ()),
     )
 
 

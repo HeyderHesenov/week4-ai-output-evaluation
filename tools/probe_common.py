@@ -8,6 +8,7 @@ hissə burada, ona görə iki alət bir-birindən sürüşə bilmir.
 
 from __future__ import annotations
 
+import shlex
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,19 +60,28 @@ def probe_yarat(
     (bu, `RagSut.preflight`-in işidir və o, pullu yolda çağırılır). Boş
     dəyəri uydurulmuş commit-lə doldurmaq artefaktı yalan edərdi.
     """
-    pid = probe_id(alet=alet, oxlar=oxlar, indi=indi_utc())
-    writer = ProbeWriter(
-        ProbePaths.for_probe(probes_dir, pid), secrets=settings.live_secrets
-    )
+    # VAXT BİR DƏFƏ OXUNUR. İki ayrı `indi_utc()` çağırışı saniyə sərhədini
+    # kəsə bilirdi: qovluq adı `…T131459Z`, manifestin `started_at`-i isə
+    # `…T131500Z` olurdu. Qovluq adı hər şeyin istinad etdiyi KİMLİKDİR
+    # (sənəd ona görə sitat gətirir), ona görə iki dəyər arasındakı fərq
+    # sonradan «hansı icra?» sualını çətinləşdirir.
+    indi = indi_utc()
     kimlik = probe_identity(
         alet=alet,
         argv=argv,
-        started_at=indi_utc(),
+        started_at=indi,
         harness_commit=read_harness_commit(PROJECT_ROOT),
         sut_commit=sut_commit or settings.sut_commit,
         config_hash=settings.config_hash,
         dataset_sha256=dataset.sha256,
         koke=PROJECT_ROOT,
+    )
+    # Kimlik writer-ə ÖTÜRÜLÜR: qovluq yaranan anda manifest də düşür, ona
+    # görə kəsilmiş icra da kim olduğunu deyə bilir.
+    writer = ProbeWriter(
+        ProbePaths.for_probe(probes_dir, probe_id(alet=alet, oxlar=oxlar, indi=indi)),
+        secrets=settings.live_secrets,
+        kimlik=kimlik,
     )
     return writer, kimlik
 
@@ -90,8 +100,16 @@ def summary_metni(*, basliq: str, probe_id_: str, argv: Sequence[str], govde: st
     `tests/test_logs_iddialari.py` sənəddəki `<!-- artefakt: <id> -->`
     blokunun məhz bu mətndə olduğunu yoxlayır, ona görə format sabit
     saxlanılmalıdır.
+
+    ƏMR YAPIŞDIRILA BİLƏN OLMALIDIR. `argv_temizle` maşın yolunu
+    `<müvəqqəti-qovluq>` ilə əvəz edir, `<` və `>` isə shell-də
+    yönləndirmədir: sitatsız sətir `--workdir`-i dəyərsiz qoyur və shell
+    `syntax error` verir. Bloka «bu cədvəl hansı əmrlə alınıb?» sualının
+    cavabı kimi baxılır — işləməyən əmr bu vəzifəni yerinə yetirmir.
+    `shlex.quote` yalnız ehtiyacı olan tokenə toxunur, ona görə `--top-k 4`
+    kimi ölçmə parametrləri oxunaqlı qalır.
     """
-    emr = " ".join(argv)
+    emr = " ".join(shlex.quote(t) for t in argv)
     return (
         f"# {basliq}\n\n"
         f"`probe_id`: `{probe_id_}`\n\n"

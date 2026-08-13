@@ -255,3 +255,374 @@ def test_registr_ATOMIK_yazilir_ve_muveqqeti_fayl_qalmir(tmp_path) -> None:
     assert len(read_holdout_ledger(path)) == 2
     assert not (tmp_path / "holdout_ledger.json.tmp").exists()
     assert json.loads(path.read_text(encoding="utf-8"))[0]["run_id"] == "r1"
+
+
+# =============================================================================
+# 2026-08-12 `/code-review xhigh 2d9308f` icmalı
+# =============================================================================
+#
+# Aşağıdakı testlərin hamısı `2d9308f` üzərində UĞURSUZ olurdu. Bölmə tarixli
+# saxlanılır, çünki tapıntının hansı icmaldan gəldiyi onun kontekstidir.
+
+
+# --- report: indeks/retrieval kimliyi ----------------------------------------
+
+
+def _manifest(**sut_retrieval) -> dict:
+    """Yalnız `sut_retrieval` ilə fərqlənən manifest — qalan hər şey eynidir.
+
+    `sha256` QƏSDƏN eynidir: tapıntı elə budur ki, uyğun barmaq izi qapı
+    parametrlərindəki fərqi görünməz edirdi.
+    """
+    return {
+        "config_hash": "a",
+        "config": {},
+        "sut_chunk_count": 29,
+        "sut_index": {"sha256": "aaaa"},
+        "sut_retrieval": {
+            "top_k": 4,
+            "relevance_threshold": 0.42,
+            "lexical_threshold": 0.35,
+            "chunk_size": 500,
+            "embedding_model": "text-embedding-3-small",
+            **sut_retrieval,
+        },
+    }
+
+
+def test_eyni_barmaq_izi_QAPI_ferqini_gizletmir() -> None:
+    """Barmaq izi chunk ID-lərindən törəyir, qapı parametrləri isə ID dəyişmir.
+
+    `lexical_threshold` 0.35 → 0.17 heç bir chunk ID-ni dəyişmir, yəni iki run
+    eyni barmaq izi verir. Əvvəlki `_index_diff_lines` məhz burada `return []`
+    edirdi və addım 3-ə (`sut_retrieval` müqayisəsi) heç vaxt çatmırdı —
+    funksiyanın mövcud olma səbəbi olan hal xəbərdarlıqsız keçirdi.
+    """
+    from eval.report import _config_diff_lines
+
+    lines = _config_diff_lines(_manifest(), _manifest(lexical_threshold=0.17))
+
+    assert len(lines) == 1, lines
+    assert "lexical_threshold" in lines[0]
+    assert "0.35" in lines[0] and "0.17" in lines[0]
+
+
+def test_eyni_barmaq_izi_EMBEDDING_modeli_ferqini_gizletmir() -> None:
+    """Barmaq izi vektorları GÖRMÜR — yalnız chunk mətnlərini.
+
+    Sübut bu commit-in öz artefaktındadır (`logs/probes/20260812T191757Z-…`):
+    baseline və `text-embedding-3-large` sətirləri eyni `sha=53974e67bd222968`
+    daşıyır, halbuki indekslər tamamilə fərqli vektorlardan ibarətdir.
+    `embedding_model` artefaktda ÜMUMİYYƏTLƏ yazılmırdı, ona görə iki run
+    «eyni ölçülmüş sistem» kimi görünürdü.
+    """
+    from eval.report import _config_diff_lines
+
+    lines = _config_diff_lines(
+        _manifest(), _manifest(embedding_model="text-embedding-3-large")
+    )
+
+    assert len(lines) == 1, lines
+    assert "embedding_model" in lines[0]
+    assert "text-embedding-3-large" in lines[0]
+
+
+def test_effective_retrieval_EMBEDDING_modelini_qeyd_edir() -> None:
+    """Yuxarıdakı hesabat sətri yalnız sahə artefakta DÜŞÜRSƏ mümkündür."""
+    from eval.sut import _effective_retrieval
+
+    class SahteSettings:
+        top_k = 4
+        embedding_model = "text-embedding-3-large"
+
+    class SahtePipeline:
+        settings = SahteSettings()
+
+    assert _effective_retrieval(SahtePipeline())["embedding_model"] == (
+        "text-embedding-3-large"
+    )
+
+
+# --- artifacts: atılan chunk-ların balları -----------------------------------
+
+
+def test_retrieval_ballari_GERI_OXUNUR(tmp_path) -> None:
+    """`scores` yazılırdı, amma dekoder onu bərpa etmirdi — səssiz `()`.
+
+    Nəticə: README-nin «astananı nə qədər endirmək lazımdır?» sualına
+    saxlanmış artefaktdan cavab vermək iddiası karkasın ÖZ oxuyucusundan
+    keçmirdi; dəyərlərə yalnız `observations.jsonl`-ı xam grep etməklə
+    çatmaq olurdu. Bu, məhz artefakt oxumağı əvəz etmək üçün yazılmış
+    sahənin faydasını sıfırlayırdı.
+    """
+    from eval.artifacts import RunWriter
+    from eval.observation import RetrievalCall
+    from tests.conftest import make_observation
+
+    ballar = (0.77, 0.51, 0.335, 0.12)
+    obs = make_observation(
+        "c1",
+        retrieval_calls=[
+            RetrievalCall(
+                mode="hybrid", k=4, latency_ms=120.0, returned=4,
+                top_score=ballar[0], query_chars=30, scores=ballar,
+            )
+        ],
+    )
+    w = RunWriter(RunPaths.for_run(tmp_path, "run-001"))
+    w.write_manifest({"run_id": "run-001"})
+    w.append_observation(obs)
+
+    oxunan = load_run(RunPaths.for_run(tmp_path, "run-001")).observations[0]
+    assert oxunan.retrieval_calls[0].scores == ballar
+    assert oxunan == obs, "gediş-gəliş tam olmalıdır, yalnız `scores` deyil"
+
+
+# --- artifacts: yarımçıq kəsilmiş probe --------------------------------------
+#
+# Qovluq ölçmədən ƏVVƏL yaranırdı, manifest isə ən SONDA yazılırdı. Aradakı
+# pəncərədə hər şey səhv gedirdi: Ctrl-C manifestsiz qovluq qoyurdu (bütün
+# dəst hamı üçün qırmızı olurdu), və `ProbePaths.exists()` məhz həmin sonuncu
+# fayla baxdığı üçün təkrar icra yarımçıq qovluğa DAVAM edirdi — bir
+# artefaktda iki icranın sətirləri. Bu, elə `2d9308f`-in düzəltdiyi qüsurdur.
+
+
+def _probe_kimliyi() -> dict:
+    return {"probe_tool": "sweep", "argv": ["python", "x.py"], "started_at": "20260813T000000Z"}
+
+
+def test_probe_manifesti_ILK_ANDA_yazilir(tmp_path) -> None:
+    from eval.artifacts import ProbePaths, ProbeWriter
+
+    paths = ProbePaths.for_probe(tmp_path, "20260813T000000Z-sweep-top_k")
+    ProbeWriter(paths, kimlik=_probe_kimliyi())  # heç bir sətir yazılmadan
+
+    manifest = json.loads(paths.file("manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "yarımçıq"
+    assert manifest["argv"] == ["python", "x.py"], "kimlik ilk andan tam olmalıdır"
+
+
+def test_movcud_probe_qovluguna_TEKRAR_yazilmir(tmp_path) -> None:
+    """Guard manifestə yox, QOVLUĞA baxmalıdır.
+
+    Manifest ən son yazılan fayl idi, ona görə yarımçıq qovluq «mövcud
+    deyil» sayılırdı və `rows.jsonl`-a əlavə yazılırdı.
+    """
+    from eval.artifacts import ArtifactError, ProbePaths, ProbeWriter
+
+    paths = ProbePaths.for_probe(tmp_path, "20260813T000000Z-sweep-top_k")
+    paths.root.mkdir(parents=True)
+    (paths.root / "rows.jsonl").write_text('{"əvvəlki": "icra"}\n', encoding="utf-8")
+
+    with pytest.raises(ArtifactError, match="mövcuddur"):
+        ProbeWriter(paths, kimlik=_probe_kimliyi())
+
+    assert paths.file("rows.jsonl").read_text(encoding="utf-8").count("\n") == 1
+
+
+def test_ugursuz_probe_manifestde_UGURSUZ_isarelenir(tmp_path) -> None:
+    """Kəsilmiş ölçmə İZ QOYUR, amma dəsti qırmızı etmir.
+
+    Yalan iki cürdür: yarımçıq nəticəni tam kimi göstərmək və yarımçıq
+    qovluğu heç nə deməmək. Status sahəsi ikisini də aradan qaldırır.
+    """
+    from eval.artifacts import ProbePaths, ProbeWriter
+
+    paths = ProbePaths.for_probe(tmp_path, "20260813T000000Z-eksperiment-chunking")
+    writer = ProbeWriter(paths, kimlik=_probe_kimliyi())
+    writer.mark_failed("ConfigError")
+
+    manifest = json.loads(paths.file("manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "uğursuz"
+    assert manifest["error"] == "ConfigError"
+    assert manifest["argv"] == ["python", "x.py"], "kimlik itməməlidir"
+
+
+def test_ugurlu_probe_manifesti_TAMAM_isarelenir(tmp_path) -> None:
+    from eval.artifacts import ProbePaths, ProbeWriter
+
+    paths = ProbePaths.for_probe(tmp_path, "20260813T000000Z-sweep-top_k")
+    writer = ProbeWriter(paths, kimlik=_probe_kimliyi())
+    writer.write_manifest({**_probe_kimliyi(), "namizəd_sayı": 3})
+
+    manifest = json.loads(paths.file("manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "tamam"
+    assert manifest["namizəd_sayı"] == 3
+
+
+# --- probe_common: təkrar istehsal əmri işlək olmalıdır -----------------------
+
+
+def test_summary_daki_emr_YAPISDIRILA_bilir() -> None:
+    """`<müvəqqəti-qovluq>` shell-də yönləndirmədir, ad deyil.
+
+    Artefaktın bəyan edilmiş məqsədi «bu cədvəl hansı əmrlə alınıb?» sualına
+    cavab verməkdir; `<` və `>` sitatsız qalanda yapışdırılan sətir
+    `--workdir`-i dəyərsiz qoyur və «no such file or directory» verir — yəni
+    artefakt işləməyən əmr təqdim edir. Token DƏYİŞMİR (o, artefaktlarda
+    artıq mövcuddur), yalnız sitatlanır.
+
+    YOXLAMA ÜSULU: `shlex.split` DEFAULT halda `<` və `>`-ni adi simvol
+    sayır, yəni baqı GÖRMÜR — bu test onunla yaşıl qalardı. `punctuation_chars`
+    isə shell metasimvollarını modelləşdirir. Həqiqi `/bin/sh` ilə yoxlanılıb:
+    sitatsız sətir `syntax error near unexpected token` verir.
+    """
+    import shlex
+
+    from eval.artifacts import MUVEQQETI_YOL
+    from tools.probe_common import summary_metni
+
+    argv = ["python", "tools/retrieval_experiments.py", "--workdir", MUVEQQETI_YOL]
+    metn = summary_metni(basliq="B", probe_id_="p", argv=argv, govde="g")
+    emr = metn.split("```bash\n", 1)[1].split("\n```", 1)[0]
+
+    lexer = shlex.shlex(emr, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    assert list(lexer) == argv, "shell əmri geri parse olunmalıdır"
+
+
+# --- retrieval_experiments: matched büdcə invariantı --------------------------
+
+
+def test_MATCHED_budce_baseline_i_asmir_cox_bolunen_sualda() -> None:
+    """«cəm baseline-dan böyük ola bilmir» iddiası YALAN idi.
+
+    `k = max(1, top_k // len(sorgular))`: `top_k=4` və 5 alt-sorğuda `k=1`
+    verir, cəm isə 5 — yəni «matched» etiketli sətir `✗ BÜDCƏ ARTIQ` damğası
+    alır və alət 3 kodu ilə çıxır. Cari dev korpusunda baş vermir (yalnız 2
+    sual bölünür, hərəsi 3-ə), ona görə çap olunmuş heç bir rəqəm səhv deyil
+    — amma rejimin adı doğru olmalıdır.
+    """
+    from tests.test_retrieval_experiments import _FakePipeline
+    from tools.retrieval_experiments import evaluate, sub_queries
+
+    sual = (
+        "Kart limiti nə qədərdir və kvota həddi nə qədərdir və SLA müddəti nə "
+        "qədərdir və cache ömrü nə qədərdir?"
+    )
+    assert len(sub_queries(sual)) == 5, "test məhz çox bölünən sual tələb edir"
+
+    row = evaluate(_FakePipeline(), sual, set(), expand=True, budget_mode="matched")
+
+    # 5 sorğu → 4-ə kəsilir (1 atılır) → hərəsinə k=1 → büdcə TAM 4,
+    # yəni baseline ilə eyni: rejimin adı artıq davranışı düzgün deyir.
+    assert row["retrieval_budget"] == 4, "matched rejim baseline büdcəsini aşmamalıdır"
+    assert row["queries"] == 4
+    assert row["dropped_subqueries"] == 1, "kəsmə SƏSSİZ olmamalıdır"
+
+
+def test_MATCHED_rejimde_TAM_sual_her_zaman_qalir() -> None:
+    """Kəsmə tam sualı ata bilməz — o, genişləndirmənin təhlükəsizlik payıdır."""
+    from tools.retrieval_experiments import matched_sorgular
+
+    sorgular = ["TAM SUAL", "a", "b", "c", "d", "e"]
+    saxlanan, atilan = matched_sorgular(sorgular, top_k=2)
+
+    assert saxlanan[0] == "TAM SUAL"
+    assert len(saxlanan) == 2 and atilan == 4
+
+
+# --- sut: indeks kimliyinin oxunuşu ------------------------------------------
+
+
+class _StoreSuz:
+    """`settings` var, `store` yoxdur — preflight-dən əvvəlki hal."""
+
+    class _S:
+        persist_dir = "/xeyali/yol/chroma_c500"
+
+    settings = _S()
+
+
+def test_store_oxunmasa_da_PERSIST_DIR_adi_qalir() -> None:
+    """`persist_dir_name` store oxunuşundan asılı deyil — onunla birgə atılmamalıdır."""
+    from eval.sut import _index_identity
+
+    assert _index_identity(_StoreSuz())["persist_dir_name"] == "chroma_c500"
+
+
+def test_store_oxunusundaki_GOZLENILMEYEN_xeta_udulmur() -> None:
+    """Səssiz `{}` «artefakt köhnədir» kimi oxunur — halbuki sistem xarabdır.
+
+    Bu, `tools/retrieval_experiments.py:ensure_index`-in eyni commit-də
+    müdafiə etdiyi qaydadır: pin edilmiş commit dəyişəndə səhv XƏTA kimi
+    görünməlidir, «səssiz sıfır» kimi yox. Sxem səhvləri (`AttributeError`
+    və s.) udulur — onlar həqiqətən «sübut yoxdur» deməkdir; disk/chroma
+    xətası isə udulmur.
+    """
+    from eval.sut import _index_identity
+
+    class _Xarab(_StoreSuz):
+        class _Store:
+            @property
+            def _store(self):
+                raise OSError("disk oxunmur")
+
+        store = _Store()
+
+    with pytest.raises(OSError):
+        _index_identity(_Xarab())
+
+    class _SxemDeyisib(_StoreSuz):
+        class _Store:
+            pass  # `_store` yoxdur — SUT API-si dəyişib
+
+        store = _Store()
+
+    kimlik = _index_identity(_SxemDeyisib())
+    assert "sha256" not in kimlik, "sübut yoxdursa, iddia da edilmir"
+    assert kimlik["persist_dir_name"] == "chroma_c500"
+
+
+# --- yüngül tapıntılar --------------------------------------------------------
+
+
+def test_barmaq_izi_ALET_ve_KARKASDA_eyni_funksiyadir() -> None:
+    """Birləşdirmə iddiasını şərh yox, kimlik qorumalıdır.
+
+    Düstur iki yerdə KOPYALANMIŞDI: biri dəyişsə, «probe artefaktı ilə run
+    manifesti birləşdirilə bilir» iddiası səssizcə yalan olardı.
+    """
+    from eval.sut import index_fingerprint as karkasda
+    from tools.retrieval_experiments import index_fingerprint as aletde
+
+    assert aletde is karkasda
+
+
+def test_probe_adindaki_oxlar_EKSPERIMENT_destinden_toremelidir() -> None:
+    """Sabit siyahı qovluq adına run-un etmədiyi ölçməni yazdıra bilirdi."""
+    from tools.retrieval_experiments import EXPERIMENTS, Experiment, swept_axes
+
+    assert swept_axes(EXPERIMENTS) == ["chunking", "embedding", "genişləndirmə"]
+    assert swept_axes([Experiment("baseline")]) == []
+    assert swept_axes([Experiment("yalnız chunking", chunk_size=500)]) == ["chunking"]
+
+
+def test_config_hash_SEHV_deyerde_ConfigError_qaldirir() -> None:
+    """Modulun bütün digər səhv-konfiqurasiya yolları `ConfigError` verir."""
+    settings = Settings.load()
+    pozuq = Settings(**{**vars(settings), "retrieval_threshold": float("nan")})
+
+    with pytest.raises(ConfigError, match="NaN"):
+        pozuq.config_hash
+
+
+def test_probe_qovlugunun_adi_ile_started_at_EYNI_andir(monkeypatch, tmp_path) -> None:
+    """İki ayrı `indi_utc()` çağırışı saniyə sərhədini kəsə bilirdi.
+
+    Qovluq adı hər şeyin istinad etdiyi kimlikdir — sənəd ona görə sitat
+    gətirir. Manifestdəki vaxtın ondan bir saniyə fərqlənməsi «hansı icra?»
+    sualını sonradan çətinləşdirir.
+    """
+    import tools.probe_common as pc
+    from tests.conftest import make_dataset
+
+    damgalar = iter(["20260813T131459Z", "20260813T131500Z"])
+    monkeypatch.setattr(pc, "indi_utc", lambda: next(damgalar))
+
+    writer, kimlik = pc.probe_yarat(
+        alet="sweep", oxlar=["top_k"], argv=["python", "x.py"],
+        settings=Settings.load(), dataset=make_dataset([]), probes_dir=tmp_path,
+    )
+
+    assert writer.paths.probe_id.startswith(kimlik["started_at"])

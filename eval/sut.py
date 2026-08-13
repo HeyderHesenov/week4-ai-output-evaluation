@@ -345,6 +345,12 @@ def _effective_retrieval(pipeline: Any) -> dict[str, Any]:
         "chunk_size",
         "chunk_overlap",
         "collection_name",
+        # `embedding_model` BARMAQ İZİNDƏ GÖRÜNMÜR — o, chunk ID-lərinin
+        # həsridir, ID isə `sha1(mənbə|mətn)`-dir, vektordan asılı deyil.
+        # 2026-08-12 eksperimenti bunu ölçdü: baseline və `3-large` sətirləri
+        # eyni `sha=53974e67bd222968` daşıyır, halbuki vektorlar tamamilə
+        # fərqlidir. Yeganə yer buradır.
+        "embedding_model",
     ):
         value = getattr(sut_settings, name, None)
         if value is not None:
@@ -365,11 +371,22 @@ def _effective_retrieval(pipeline: Any) -> dict[str, Any]:
 def index_fingerprint(ids: Iterable[str]) -> str:
     """Sıralanmış chunk ID dəstinin sha256-sı (16 simvol).
 
-    SUT-da `chunk_id` = sha1(mənbə|mətn) olduğu üçün ID-lər MƏZMUNDAN
-    törəyir: fərqli chunking = fərqli mətn = fərqli ID dəsti = fərqli
-    barmaq izi. `tools/retrieval_experiments.py` eyni düsturu işlədir, ona
-    görə probe artefaktı ilə run manifesti birləşdirilə bilir — «bu run
-    məhz eksperimentin ölçdüyü indeksdədir» iddiası yoxlanan olur.
+    NƏYİN SÜBUTUDUR: SUT-da `chunk_id` = sha1(mənbə|mətn), ona görə ID-lər
+    MƏTNDƏN törəyir — fərqli chunking = fərqli mətn = fərqli ID dəsti =
+    fərqli barmaq izi.
+
+    NƏYİN SÜBUTU DEYİL: vektorların. Embedding modeli dəyişəndə mətn eyni
+    qalır, yəni barmaq izi də eyni qalır — 2026-08-12 eksperimenti bunu
+    ölçdü (baseline və `3-large`: hər ikisi `53974e67bd222968`). Ona görə
+    `embedding_model` AYRICA, `_effective_retrieval` içində qeyd olunur və
+    hesabat fərqi oradan tutur. Düstura qatılmır: qatılsa, köhnə
+    artefaktların həsri başqa düsturla hesablandığı üçün onlarla hər
+    müqayisə saxta «indeks fərqlidir» verərdi.
+
+    `tools/retrieval_experiments.py` eyni düsturu işlədir (elə buradan
+    import edir), ona görə probe artefaktı ilə run manifesti birləşdirilə
+    bilir — «bu run məhz eksperimentin ölçdüyü indeksdədir» iddiası
+    yoxlanan olur.
     """
     digest = hashlib.sha256()
     for chunk_id in sorted(ids):
@@ -387,22 +404,34 @@ def _index_identity(pipeline: Any) -> dict[str, Any]:
     Sahə boş qalır və hesabat «təsdiqlənə bilmir» deyir — uydurulmuş dəyər
     yazmaqdansa boşluğu etiraf etmək doğrudur.
     """
+    out: dict[str, Any] = {}
+    # `persist_dir_name` ƏVVƏLCƏ yazılır: o, store oxunuşundan ASILI DEYİL.
+    # Əvvəlki versiya onu `try`-dan sonraya qoymuşdu və uğursuz oxunuşda
+    # `return out` ilə atırdı — halbuki «hansı qovluq sorğulanıb?» sualının
+    # cavabı əlçatan qalırdı.
+    persist_dir = getattr(getattr(pipeline, "settings", None), "persist_dir", None)
+    if persist_dir is not None:
+        out["persist_dir_name"] = Path(str(persist_dir)).name
+
     store = getattr(pipeline, "store", None)
     if store is None:
-        return {}
-    out: dict[str, Any] = {}
+        return out
     try:
         # SUT-un öz oxuma yolu (`rag/store.py`-dakı `_lexical_index` ilə eyni):
         # `include=[]` yalnız ID qaytarır, mətn və vektor yox.
         ids = store._store.get(include=[]).get("ids", [])
-    except Exception:  # noqa: BLE001 — sübut əldə edilməsə, iddia da edilmir
+    except (AttributeError, TypeError, KeyError):
+        # YALNIZ SXEM SƏHVLƏRİ udulur — pin edilmiş commit dəyişəndə `_store`
+        # yox ola və ya başqa imza ala bilər, bu, sübutun olmaması deməkdir.
+        #
+        # Hər istisnanı udmaq isə `tools/retrieval_experiments.py`-ın məhz
+        # əleyhinə arqument gətirdiyi şeydir: chroma və ya disk xətası
+        # «səssiz sıfır» kimi görünərdi, xəta kimi yox, və hesabat günahı
+        # artefaktın yaşına yıxardı.
         return out
     if ids:
         out["sha256"] = index_fingerprint(ids)
         out["id_count"] = len(ids)
-    persist_dir = getattr(getattr(pipeline, "settings", None), "persist_dir", None)
-    if persist_dir is not None:
-        out["persist_dir_name"] = Path(str(persist_dir)).name
     return out
 
 

@@ -282,6 +282,9 @@ def test_budce_AZ_olan_setir_uygunsuz_sayilmir() -> None:
 
     import tools.retrieval_experiments as mod
 
-    qaynaq = inspect.getsource(mod.main)
+    # 2026-08-13: ölçmə gövdəsi `main`-dən `_olc`-a köçdü, çünki `main` indi
+    # artefakt müqaviləsini (`try/except` → `mark_failed`) daşıyır. Müqayisə
+    # məntiqi dəyişməyib, yalnız yeri.
+    qaynaq = inspect.getsource(mod._olc)
     assert 'artiq = r["retrieval_budget"] > baseline_budce' in qaynaq
     assert "if artiq:" in qaynaq, "yalnız ARTIQ büdcə uyğunsuz sayılmalıdır"

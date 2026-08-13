@@ -320,7 +320,7 @@ def _index_diff_lines(
     var_index = var_manifest.get("sut_index") or {}
     base_fp, var_fp = base_index.get("sha256"), var_index.get("sha256")
 
-    # 1. Barmaq izi — indeksin MƏZMUNUNDAN törəyir, ən güclü sübutdur.
+    # 1. Barmaq izi — chunk MƏTNLƏRİNDƏN törəyir.
     if base_fp and var_fp:
         if base_fp != var_fp:
             return [
@@ -328,7 +328,15 @@ def _index_diff_lines(
                 "İki run eyni sənəd mətnləri üzərində ölçülməyib. Bu, "
                 "`config_hash`-də GÖRÜNMÜR."
             ]
-        return []
+        # UYĞUN GƏLMƏK KİFAYƏT DEYİL, ona görə burada `return` YOXDUR.
+        #
+        # Barmaq izi `sha1(mənbə|mətn)` ID-lərinin həsridir: qapı parametrləri
+        # (`lexical_threshold`, `top_k`, astana, marja) və embedding modeli heç
+        # bir ID-ni dəyişmir, yəni tamamilə fərqli vektor indeksi və ya
+        # tamamilə fərqli qapı EYNİ barmaq izi verir. Əvvəlki versiya məhz
+        # burada `return []` edirdi və addım 3-ə heç vaxt çatmırdı —
+        # funksiyanın mövcud olma səbəbi olan hal xəbərdarlıqsız keçirdi.
+        return _retrieval_diff_lines(base_manifest, var_manifest, yoxdursa=_QAPI_BILINMIR)
 
     # 2. Chunk sayı — HƏR manifestdə var, o cümlədən `sut_retrieval`-dan
     #    əvvəlki 2026-08-10 artefaktlarında. Köhnə run-larla müqayisədə
@@ -343,25 +351,50 @@ def _index_diff_lines(
             "yeganə şahiddir."
         ]
 
-    # 3. Niyyət səviyyəsi — `chunk_size` və qapı parametrləri.
+    # 3. Niyyət səviyyəsi — `chunk_size`, qapı parametrləri, embedding modeli.
+    # 4. (`sut_retrieval` da yoxdursa) heç bir şahid yoxdur.
+    return _retrieval_diff_lines(base_manifest, var_manifest, yoxdursa=_SAHID_YOXDUR)
+
+
+# Barmaq izi uyğun gəldi, amma qapı/model müqayisə oluna bilmədi: mətnlərin
+# eyni olduğu SÜBUTDUR, ölçülən sistemin eyni olduğu isə yox.
+_QAPI_BILINMIR = (
+    "- ⚠️ Barmaq izi uyğun gəlir (indeksdəki MƏTNLƏR eynidir), amma run-lardan "
+    "birində `sut_retrieval` qeydi yoxdur — **qapı parametrləri və embedding "
+    "modeli müqayisə edilə bilmir**. Barmaq izi onları əhatə etmir: onlar heç "
+    "bir chunk ID-sini dəyişmir."
+)
+
+_SAHID_YOXDUR = (
+    "- ⚠️ Run-lardan birində `sut_index`/`sut_retrieval` qeydi yoxdur (artefakt "
+    "bu sahələr əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə "
+    "ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR** — `chunk_size` niyyətdir, "
+    "indeksin özünün sübutu deyil."
+)
+
+
+def _retrieval_diff_lines(
+    base_manifest: Mapping[str, Any],
+    var_manifest: Mapping[str, Any],
+    *,
+    yoxdursa: str,
+) -> list[str]:
+    """`sut_retrieval` bloklarının müqayisəsi — SUT-un env-dən gələn kimliyi.
+
+    `yoxdursa` çağıran addımdan asılıdır: barmaq izi uyğun gəldikdən sonra
+    blokun olmaması ilə heç bir şahidin olmaması eyni şey deyil.
+    """
     base_sut = base_manifest.get("sut_retrieval")
     var_sut = var_manifest.get("sut_retrieval")
-    if base_sut is not None and var_sut is not None:
-        differing = _diff_keys(base_sut, var_sut)
-        if differing:
-            return [
-                f"- ⚠️ **SUT retrieval konfiqurasiyası fərqlidir** ({len(differing)} "
-                f"açar): {_detail(base_sut, var_sut, differing)}. Bu, `config_hash`-də "
-                "GÖRÜNMÜR — SUT parametrləri env-dən gəlir."
-            ]
+    if base_sut is None or var_sut is None:
+        return [yoxdursa]
+    differing = _diff_keys(base_sut, var_sut)
+    if not differing:
         return []
-
-    # 4. Heç bir şahid yoxdur.
     return [
-        "- ⚠️ Run-lardan birində `sut_index`/`sut_retrieval` qeydi yoxdur (artefakt "
-        "bu sahələr əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə "
-        "ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR** — `chunk_size` niyyətdir, "
-        "indeksin özünün sübutu deyil."
+        f"- ⚠️ **SUT retrieval konfiqurasiyası fərqlidir** ({len(differing)} "
+        f"açar): {_detail(base_sut, var_sut, differing)}. Bu, `config_hash`-də "
+        "GÖRÜNMÜR — SUT parametrləri env-dən gəlir."
     ]
 
 

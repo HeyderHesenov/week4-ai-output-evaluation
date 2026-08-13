@@ -2,7 +2,18 @@
 
 `logs/retrieval_sweep.md` qapı **parametrlərini** rədd etdi və üç istiqamət
 təklif etdi. Bu sənəd həmin üçünü eyni metrika ilə ölçür. Alət:
-`tools/retrieval_experiments.py`, xam nəticə: `logs/retrieval_experiments.json`.
+`tools/retrieval_experiments.py`, xam nəticə:
+`logs/probes/20260812T191757Z-eksperiment-chunking+embedding+genişləndirmə/`.
+
+> ⟶ **RETRAKSİYA (2026-08-13): `logs/retrieval_experiments.json` xam nəticə
+> DEYİL.** Bu sətir əvvəllər həmin fayla işarə edirdi. Fayl silinmir (ölçmə
+> qeydi geriyə dönük redaktə olunmur), amma o, **13:38 icrasında donub** və
+> aşağıdakı cədvəli dəstəkləmir: içindəki eksperiment adları geri götürülmüş
+> dəstdəndir (`sorğu genişləndirmə`, `genişləndirmə + 300/90` — büdcə rejimi
+> ayrılmamışdan əvvəl) və `retrieval_budget` sahəsi ümumiyyətlə yoxdur, yəni
+> D2 düzəlişindən əvvəlkidir. Bu sənədin rəqəmlərinin sübutu yalnız yuxarıda
+> göstərilən probe qovluğudur — `logs/retrieval_sweep.md`-dəki eyni
+> vəziyyətlə eyni qayda.
 
 ## Metod
 
