@@ -133,18 +133,27 @@ etməlidir.
 
 ### Case dəsti
 
-| case | nə yoxlayır |
-|---|---|
-| `dev_false_premise_free_cache` | qol 1 imtinanı **aktiv düzəlişə** çevirirmi (və 128-i deməməyi saxlayırmı) |
-| `dev_ambiguous_limit` | qol 2 «Limit 200-dür» səssiz seçimini dayandırırmı |
-| `dev_out_of_corpus_graphql` | **reqressiya nəzarəti** — qol 2 imtina qapısını sındırmamalıdır |
-| `dev_out_of_corpus_ceo` | eyni nəzarət |
+| case | saxlanmış vəziyyət | nə yoxlayır |
+|---|---|---|
+| `dev_false_premise_free_cache` | 2 chunk, 1 LLM çağırışı, `model_refused` | qol 1 imtinanı **aktiv düzəlişə** çevirirmi (və 128-i deməməyi saxlayırmı) |
+| `dev_ambiguous_limit` | 4 chunk, 1 çağırış, `answered` | qol 2 «Limit 200-dür» səssiz seçimini dayandırırmı |
+| `dev_out_of_corpus_graphql` | 4 chunk, 1 çağırış, `model_refused` | **reqressiya nəzarəti** — qol 2 imtina qapısını sındırmamalıdır |
+
+**`dev_out_of_corpus_ceo` QƏSDƏN kənardadır.** Saxlanmış artefaktda onun
+`reason`-u `low_relevance` və **LLM çağırışı sayı sıfırdır**: retrieval qapısı
+onu modelə çatmamış kəsir. Yəni heç bir prompt dəyişikliyi onu sındıra bilməz
+və probe onun haqqında heç nə ölçə bilməz. Bunu cədvələ boş sətir kimi salmaq
+ölçülməmiş şeyi ölçülmüş kimi göstərərdi.
+
+Bu, həm də dövr üçün faydalı məhdudiyyətdir: prompt səviyyəsində
+`out_of_corpus` reqressiya riski **yalnız `graphql` case-ində** görünəndir; qapı
+ilə qorunan case-lər bu dövrün riskindən kənardadır.
 
 **Hər qol 3 dəfə təkrarlanır** — run protokolu ilə eyni. Model determinist
 deyil, ona görə bir dəfə düzələn cavab təsadüf ola bilər; uğursuzluqların özü
 3/3 idi, müalicənin də eyni ölçüdə yoxlanması simmetrikdir.
 
-4 case × 4 qol × 3 təkrar = **48 çağırış**, hakimsiz.
+3 case × 4 qol × 3 təkrar = **36 çağırış**, hakimsiz.
 
 ### Etibarlılıq qapısı — nəzarət qolu
 
