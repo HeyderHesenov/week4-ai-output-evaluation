@@ -193,3 +193,83 @@ def test_probe_case_leri_MODELE_CATAN_uclukdur() -> None:
         "dev_out_of_corpus_graphql",
     ]
     assert [c.nezaret_davranisi for c in PROBE_CASES] == ["imtina", "tek_oxunus", "imtina"]
+
+
+# --- Task 3: qollar, ölçmə dövrü, nəzarət qapısı -----------------------------
+
+
+class _SahteLlm:
+    """`invoke(messages)` — SUT-un `ChatOpenAI`-dən işlətdiyi yeganə metod."""
+
+    def __init__(self, cavablar: dict[str, str]) -> None:
+        self.cavablar = cavablar
+        self.cagirislar: list[list[dict]] = []
+
+    def invoke(self, messages):
+        self.cagirislar.append(messages)
+        system = messages[0]["content"]
+        for acar, cavab in self.cavablar.items():
+            if acar and acar in system:
+                return type("R", (), {"content": cavab})()
+        return type("R", (), {"content": self.cavablar[""]})()
+
+
+def _obs(case_id: str, question: str) -> dict:
+    return {
+        "case_id": case_id, "question": question,
+        "chunks": [_cv()], "system_sha256": "",
+    }
+
+
+def test_her_qol_her_case_ucun_UC_defe_isledilir() -> None:
+    from tools.generation_probe import QOLLAR, olc
+
+    llm = _SahteLlm({"": "Sənədlərdə bu suala cavab tapılmadı."})
+    setirler = olc(
+        {"dev_out_of_corpus_graphql": _obs("dev_out_of_corpus_graphql", "GraphQL?")},
+        llm=llm, q=_qurucular(), tekrar=3,
+    )
+
+    assert len(setirler) == len(QOLLAR) * 3
+    assert len(llm.cagirislar) == len(QOLLAR) * 3
+    assert sorted({s["tekrar"] for s in setirler}) == [1, 2, 3]
+    assert all(s["sinif"] == "imtina" for s in setirler)
+
+
+def test_qollar_system_mesajini_FERQLENDIRIR() -> None:
+    """Dörd qol dörd fərqli system prompt-u deməkdir — yoxsa müqayisə boşdur."""
+    from tools.generation_probe import QOLLAR, olc
+
+    llm = _SahteLlm({"": "Sənədlərdə bu suala cavab tapılmadı."})
+    setirler = olc(
+        {"dev_out_of_corpus_graphql": _obs("dev_out_of_corpus_graphql", "GraphQL?")},
+        llm=llm, q=_qurucular(), tekrar=1,
+    )
+
+    assert len({s["system_sha256"] for s in setirler}) == len(QOLLAR)
+
+
+def test_nezaret_qolu_orijinal_davranisi_TEKRAR_ISTEHSAL_etmese_qapi_baglanir() -> None:
+    """Sadiq olmayan təkrar oynatmada bütün cədvəl mənasızdır."""
+    from tools.generation_probe import NEZARET_QOLU, nezaret_sadiqdir
+
+    yaxsi = [{"case_id": "dev_ambiguous_limit", "qol": NEZARET_QOLU,
+              "tekrar": t, "sinif": "tek_oxunus"} for t in (1, 2, 3)]
+    assert nezaret_sadiqdir(yaxsi) == (True, [])
+
+    pis = [{**r, "sinif": "oxunuslar_adlandi"} for r in yaxsi]
+    ok, sebebler = nezaret_sadiqdir(pis)
+    assert ok is False
+    assert "dev_ambiguous_limit" in sebebler[0]
+
+
+def test_nezaret_COXLUQ_uzre_qiymetlendirilir() -> None:
+    """Model determinist deyil — 3 təkrarın 2-si uyğun gəlirsə sadiqdir."""
+    from tools.generation_probe import NEZARET_QOLU, nezaret_sadiqdir
+
+    setirler = [
+        {"case_id": "dev_ambiguous_limit", "qol": NEZARET_QOLU, "tekrar": 1, "sinif": "tek_oxunus"},
+        {"case_id": "dev_ambiguous_limit", "qol": NEZARET_QOLU, "tekrar": 2, "sinif": "tek_oxunus"},
+        {"case_id": "dev_ambiguous_limit", "qol": NEZARET_QOLU, "tekrar": 3, "sinif": "imtina"},
+    ]
+    assert nezaret_sadiqdir(setirler)[0] is True
