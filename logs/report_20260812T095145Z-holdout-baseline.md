@@ -75,6 +75,12 @@ Prompt-u düzəltmək retrieval qatındakı uğursuzluğa bir bal da qazandırm�
 - Baseline (`baseline`): 15/24 = 62% (95% CI: 43%-79%)
 - Variant (`baseline`): 18/24 = 75% (95% CI: 55%-88%)
 - ℹ️ Konfiqurasiyada yalnız təmsili fərq (`sut_path`): dəyər başqa formatda yazılıb. `config_hash` buna görə fərqlidir.
+- ⟶ **BU SƏTİR KÖHNƏLDİ (2026-08-15):** müqayisə edilən 2026-08-10 artefaktında
+  `config.sut_path` repo-nisbi formaya salındı (maşın yolu istifadəçi adını
+  daşıyırdı) və `config_hash` yenidən hesablandı. İki run-ın `config_hash`-i
+  ARTIQ EYNİDİR. Sətir silinmir, çünki hesabatın həmin tarixdəki vəziyyətini
+  qeyd edir. Aşağıdakı `sut_retrieval` xəbərdarlığı isə QÜVVƏDƏDİR və əsas
+  olan odur: chunking mühit dəyişəni ilə gəlir, `config_hash`-a düşmür.
 - ⚠️ Run-lardan birində `sut_retrieval` qeydi yoxdur (artefakt bu sahə əlavə olunmazdan əvvəl yazılıb). **İki run-ın eyni indeksdə və eyni retrieval parametrləri ilə ölçüldüyü artefaktdan TƏSDİQLƏNƏ BİLMİR.**
 
 Cütlənmiş McNemar testi (eyni case-lər, dəqiq binom):

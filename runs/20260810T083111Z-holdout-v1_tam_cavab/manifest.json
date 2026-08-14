@@ -15,9 +15,9 @@
   "harness_commit": "(commit yoxdur)",
   "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
   "sut_chunk_count": 19,
-  "config_hash": "61883cc329b68f5c",
+  "config_hash": "34f9f02c16052e53",
   "config": {
-    "sut_path": "/Users/heyderhesenov/Desktop/Week4/week4-ai-output-evaluation/vendor/week2-rag-document-qa",
+    "sut_path": "vendor/week2-rag-document-qa",
     "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
     "grounding_mode": "strict",
     "generator_model": "gpt-4o-mini",
@@ -29,5 +29,6 @@
     "judge_fallback_model": "",
     "repeats": 3
   },
-  "max_holdout_similarity": 0.1111
+  "max_holdout_similarity": 0.1111,
+  "artefakt_normallasdirildi": "2026-08-15: `config.sut_path` mütləq yoldan repo-nisbi formaya salındı (maşın yolu istifadəçi adını daşıyırdı) və `config_hash` yenidən hesablandı. Ölçülmüş dəyərlərə toxunulmayıb."
 }

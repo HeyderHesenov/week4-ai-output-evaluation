@@ -14,9 +14,29 @@ edilə bilər. Fərqli hash = fərqli ölçmə.
 | Bölgü manifesti sha256 | `b2e3a399a43be04e` |
 | Variant sha256 | `07d51428fea9ee55` |
 | Hakim prompt sha256 | `acefd1a21bfdd0e6` |
-| Konfiq hash | `3fb8ef43317b1810` |
+| Konfiq hash | `ac1f04888017928e` |
 | SUT commit | `19f14c38d619` |
 | Harness commit | `(commit yoxd` |
+
+> ### ⟶ NORMALLAŞDIRMA QEYDİ (2026-08-15)
+>
+> Bu run-ın manifestində `config.sut_path` **mütləq yol** kimi yazılmışdı və
+> həmin yol maşının istifadəçi adını ictimai repo-ya daşıyırdı. Karkas bunu
+> sonradan qüsur kimi tanıyıb irəliyə doğru düzəldib
+> (`eval/config.py: public_dict` → `_repo_relative`); eyni qayda bu köhnə
+> artefakta da tətbiq olundu.
+>
+> Dəyişən: `config.sut_path` repo-nisbi formaya salındı və ondan törəyən
+> `config_hash` yenidən hesablandı (`3fb8ef43317b1810` → `ac1f04888017928e`).
+> **Ölçülmüş heç bir dəyər dəyişməyib** — observations, grades, verdicts,
+> token və gecikmə fayllarına toxunulmayıb.
+>
+> Nəticə etibarilə bu run-ın `config_hash`-i 2026-08-12 run-larınınkı ilə
+> **eyniləşdi**, çünki konfiqurasiya həqiqətən eyni idi; yeganə fərq yolun
+> formatı idi. Diqqət: `config_hash` bərabərliyi eyni indeksdə ölçmənin
+> sübutu DEYİL — chunking mühit dəyişəni ilə gəlir və bu artefaktda
+> `sut_retrieval` bloku ümumiyyətlə yoxdur. Hesabat bunu ayrıca xəbərdarlıq
+> kimi yazır.
 
 ## Xülasə
 
