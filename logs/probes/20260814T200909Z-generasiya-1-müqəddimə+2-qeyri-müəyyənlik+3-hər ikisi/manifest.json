@@ -1,0 +1,20 @@
+{
+  "probe_tool": "generasiya",
+  "argv": [
+    "python",
+    "tools/generation_probe.py",
+    "--run",
+    "20260812T094516Z-dev-baseline"
+  ],
+  "started_at": "20260814T200909Z",
+  "harness_commit": "75d5fc0d2950d611eb099d424607b90d8135afd0",
+  "sut_commit": "19f14c38d619371dd337acaa0624031f3f855f30",
+  "config_hash": "ac1f04888017928e",
+  "dataset_sha256": "587dae5440b1ca981b21d70453ee472e52d9fba1898fe868542575c8466b27dd",
+  "split": "dev",
+  "nezaret_sadiqdir": true,
+  "nezaret_sebebleri": [],
+  "tekrar": 3,
+  "model": "gpt-4o-mini",
+  "status": "tamam"
+}
