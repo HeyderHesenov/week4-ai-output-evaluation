@@ -86,6 +86,22 @@ def probe_yarat(
     return writer, kimlik
 
 
+def artefakt_yolu(kok: Path) -> str:
+    """Artefakt qovluğunun ÇAP olunan yolu.
+
+    `relative_to` repo-dan kənar yolda `ValueError` atır, yəni `--probes-dir`
+    müvəqqəti qovluğa yönəldiləndə ölçmə BİTDİKDƏN sonra, artefakt artıq
+    diskdə olduğu halda alət çökürdü — və `except BaseException` bunu
+    «uğursuz» kimi möhürləyirdi. Kənar yol olduğu kimi çap olunur: oxucunun
+    qovluğu tapa bilməsi ilə repo daxilində nisbi yol saxlamaq arasında
+    ziddiyyət yoxdur.
+    """
+    try:
+        return str(kok.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(kok)
+
+
 def cedvel(basliqlar: Sequence[str], setirler: Sequence[Sequence[Any]]) -> str:
     """Markdown cədvəli — sənədə OLDUĞU KİMİ köçürülür."""
     out = ["| " + " | ".join(basliqlar) + " |", "|" + "---|" * len(basliqlar)]

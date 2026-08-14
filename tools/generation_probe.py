@@ -26,7 +26,7 @@ dayandırır.
 
 from __future__ import annotations
 
-import hashlib
+import argparse
 import sys
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -39,13 +39,20 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from probe_common import (  # noqa: E402
     PROBES_DIRNAME,
     add_sut_to_path,
+    artefakt_yolu,
     cedvel,
     probe_yarat,
     summary_metni,
 )
 
+from eval.artifacts import RunPaths, load_run  # noqa: E402
 from eval.config import Settings  # noqa: E402
 from eval.errors import EvalError  # noqa: E402
+
+# Hash KARKASIN öz funksiyası ilə hesablanır. İkinci tərif yazmaq ölçməni
+# səssizcə sındırırdı: probe `hexdigest()[:16]`, karkas isə tam 64 simvol
+# yazırdı, ona görə nəzarət qapısı prompt heç dəyişməsə belə bağlanırdı.
+from eval.instrument import sha256_text  # noqa: E402
 from eval.observation import ChunkView  # noqa: E402
 
 
@@ -235,10 +242,18 @@ QOLLAR = (
 NEZARET_QOLU = QOLLAR[0].ad
 
 
+def model_adi(llm: Any) -> str:
+    """LLM obyektinin model adı — `InstrumentedLLM` ilə EYNİ qayda ilə."""
+    return str(
+        getattr(llm, "model_name", None) or getattr(llm, "model", None) or "naməlum"
+    )
+
+
 def olc(
     observations: dict[str, dict], *, llm, q: SutQurucular, tekrar: int = 3
 ) -> list[dict]:
     """Hər case × hər qol × `tekrar` — bir sətir hər çağırışa."""
+    model = model_adi(llm)
     setirler: list[dict] = []
     for case in PROBE_CASES:
         obs = observations.get(case.case_id)
@@ -257,9 +272,8 @@ def olc(
                     "tekrar": n,
                     "sinif": tesnif(case.case_id, cavab, q=q),
                     "cavab": cavab,
-                    "system_sha256": hashlib.sha256(
-                        msgs[0]["content"].encode("utf-8")
-                    ).hexdigest()[:16],
+                    "model": model,
+                    "system_sha256": sha256_text(msgs[0]["content"]),
                 })
     return setirler
 
@@ -287,3 +301,240 @@ def nezaret_sadiqdir(setirler: Sequence[dict]) -> tuple[bool, list[str]]:
                 f"{len(siniflər)} təkrarın yalnız {uygun}-i uyğun gəldi"
             )
     return (not sebebler), sebebler
+
+
+# ---------------------------------------------------------------------------
+# Həqiqi SUT, saxlanmış kontekst və CLI
+# ---------------------------------------------------------------------------
+
+
+def sut_qurucular(settings: Settings) -> SutQurucular:
+    """HƏQİQİ SUT — `rag.*` import edilən YEGANƏ yer.
+
+    Bura yalnız CLI yolundan çağırılır, ona görə testlər chroma tələb etmir.
+    """
+    add_sut_to_path(settings)
+    from rag.pipeline import (  # noqa: PLC0415
+        SYSTEM_INSTRUCTION,
+        _is_refusal,
+        build_user_message,
+        make_nonce,
+    )
+    from rag.store import RetrievedChunk  # noqa: PLC0415
+
+    yoxla_saheler(RetrievedChunk)
+    return SutQurucular(
+        system_instruction=SYSTEM_INSTRUCTION,
+        build_user_message=build_user_message,
+        chunk_cls=RetrievedChunk,
+        # `has_citation=False`: probe sitat yoxlamasını təkrar etmir, yalnız
+        # imtina cümləsini tanıyır. SUT-un öz funksiyası olduğu üçün tərif
+        # bir dənədir.
+        is_refusal=lambda text: _is_refusal(text, has_citation=False),
+        make_nonce=make_nonce,
+    )
+
+
+def llm_qur(settings: Settings):
+    """SUT-un öz LLM qurucusu — probe başqa model işlətməməlidir."""
+    add_sut_to_path(settings)
+    from rag.config import Settings as SutSettings  # noqa: PLC0415
+    from rag.config import build_llm  # noqa: PLC0415
+
+    return build_llm(SutSettings.load(openai_api_key=settings.require_openai_key()))
+
+
+def musahideleri_oxu(run_id: str) -> dict[str, dict]:
+    """Saxlanmış run-dan hər case üçün BİRİNCİ təkrarın kontekstini götürür.
+
+    Birinci təkrar seçilir, çünki ölçülən şey qollar arasındakı fərqdir —
+    başlanğıc kontekst hamısı üçün eyni olmalıdır.
+    """
+    settings = Settings.load()
+    paths = RunPaths.for_run(settings.runs_dir, run_id)
+    if not paths.exists():
+        raise FileNotFoundError(paths.root)
+    run = load_run(paths)
+    out: dict[str, dict] = {}
+    for obs in run.observations:
+        if obs.repeat != 1 or obs.case_id in out:
+            continue
+        # Sintez çağırışının system hash-i və modeli: qol 0 onlarla
+        # tutuşdurulur. Çağırış olmayan case (qapı kəsib) bura düşsə, dəyərlər
+        # boş qalır və yoxlamalar onu atlayır — uydurulmuş dəyər yazmaqdansa
+        # boşluğu etiraf etmək doğrudur.
+        sintez = [c for c in obs.llm_calls if c.role == "synthesis"]
+        out[obs.case_id] = {
+            "case_id": obs.case_id,
+            "question": obs.question,
+            "chunks": list(obs.chunks),
+            "system_sha256": sintez[0].system_sha256 if sintez else "",
+            "model": sintez[0].model if sintez else "",
+        }
+    return out
+
+
+def _nezaret_qolu_uzre(
+    setirler: Sequence[dict],
+    observations: dict[str, dict],
+    *,
+    sahe: str,
+    sebeb_metni: Callable[[str, str, str], str],
+) -> tuple[bool, list[str]]:
+    """Qol 0-ın bir sahəsini saxlanmış run ilə tutuşdurur.
+
+    YALNIZ NƏZARƏT QOLU: qol 1-3 prompt-u qəsdən dəyişir. Saxlanmış dəyər
+    boşdursa yoxlama ATLANIR — bilinməyəni uyğunsuzluq kimi göstərmək
+    ölçməni əsassız dayandırardı.
+    """
+    sebebler: list[str] = []
+    for setir in setirler:
+        if setir["qol"] != NEZARET_QOLU:
+            continue
+        gozlenilen = (observations.get(setir["case_id"]) or {}).get(sahe, "")
+        if not gozlenilen or setir[sahe] == gozlenilen:
+            continue
+        sebeb = sebeb_metni(setir["case_id"], gozlenilen, setir[sahe])
+        if sebeb not in sebebler:
+            sebebler.append(sebeb)
+    return (not sebebler), sebebler
+
+
+def system_prompt_deyismeyib(
+    setirler: Sequence[dict], observations: dict[str, dict]
+) -> tuple[bool, list[str]]:
+    """Qol 0-ın system prompt-u saxlanmış run-dakı ilə eynidirmi.
+
+    Davranış yoxlamasından AYRIDIR və ondan güclüdür: davranış təsadüfən
+    üst-üstə düşə bilər, hash düşməz.
+    """
+    return _nezaret_qolu_uzre(
+        setirler, observations, sahe="system_sha256",
+        sebeb_metni=lambda case_id, gozlenilen, indi: (
+            f"{case_id}: system prompt dəyişib — "
+            f"run-da `{gozlenilen}`, indi `{indi}`"
+        ),
+    )
+
+
+def model_deyismeyib(
+    setirler: Sequence[dict], observations: dict[str, dict]
+) -> tuple[bool, list[str]]:
+    """Probe saxlanmış run ilə EYNİ modeli ölçürmü.
+
+    Model `LLM_MODEL` env dəyişəni ilə gəlir, yəni `config_hash`-a düşmür və
+    səssizcə sürüşə bilər. Başqa modellə ölçmək qolları müqayisə etməyi
+    dayandırır: fərq qoldan da, modeldən də gələ bilər və ayırd edilə bilməz.
+    Davranış qapısı bunu tutmaya bilər — başqa model də gözlənilən sinfi
+    qaytara bilər.
+    """
+    return _nezaret_qolu_uzre(
+        setirler, observations, sahe="model",
+        sebeb_metni=lambda case_id, gozlenilen, indi: (
+            f"{case_id}: model dəyişib — run `{gozlenilen}` ilə ölçülüb, "
+            f"probe isə `{indi}` işlədir"
+        ),
+    )
+
+
+def _summary_govdesi(
+    setirler: Sequence[dict], sadiq: bool, sebebler: Sequence[str]
+) -> str:
+    """Sənədə köçürüləcək cədvəl — hər case × qol üçün üstün sinif."""
+    qol_adlari = [q.ad for q in QOLLAR]
+    matris: dict[tuple[str, str], list[str]] = {}
+    for s in setirler:
+        matris.setdefault((s["case_id"], s["qol"]), []).append(s["sinif"])
+
+    cedvel_setirleri = []
+    for case in PROBE_CASES:
+        setir = [case.case_id]
+        for qol in qol_adlari:
+            siniflər = matris.get((case.case_id, qol), [])
+            if not siniflər:
+                setir.append("—")
+                continue
+            usta = max(sorted(set(siniflər)), key=siniflər.count)
+            setir.append(f"{usta} ({siniflər.count(usta)}/{len(siniflər)})")
+        cedvel_setirleri.append(setir)
+
+    out = cedvel(["case", *qol_adlari], cedvel_setirleri)
+    if not sadiq:
+        out += "\n\n> ⚠️ **NƏZARƏT QOLU SADİQ DEYİL** — " + "; ".join(sebebler) + (
+            ". Yuxarıdakı cədvəl orijinal sistemi əks etdirmir və nəticə "
+            "çıxarmaq üçün işlədilə bilməz."
+        )
+    return out
+
+
+def build_parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--run", required=True, help="kontekstin götürüləcəyi dev run_id")
+    ap.add_argument("--probes-dir", type=Path, default=None)
+    ap.add_argument("--tekrar", type=int, default=3)
+    return ap
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    args = build_parser().parse_args(argv)
+
+    settings = Settings.load()
+    try:
+        observations = musahideleri_oxu(args.run)
+    except FileNotFoundError as exc:
+        print(f"Run tapılmadı: {exc}", file=sys.stderr)
+        return 2
+
+    from eval.dataset import load_dataset  # noqa: PLC0415
+
+    dataset = load_dataset(settings.dataset_path)
+    probes_dir = args.probes_dir or (settings.logs_dir / PROBES_DIRNAME)
+    writer, kimlik = probe_yarat(
+        alet="generasiya",
+        oxlar=[qol.ad for qol in QOLLAR[1:]],
+        argv=["python", "tools/generation_probe.py", *argv],
+        settings=settings,
+        dataset=dataset,
+        probes_dir=probes_dir,
+    )
+
+    try:
+        llm = llm_qur(settings)
+        setirler = olc(
+            observations, llm=llm, q=sut_qurucular(settings), tekrar=args.tekrar,
+        )
+        for setir in setirler:
+            writer.append_row(setir)
+
+        davranis_ok, davranis_sebebleri = nezaret_sadiqdir(setirler)
+        hash_ok, hash_sebebleri = system_prompt_deyismeyib(setirler, observations)
+        model_ok, model_sebebleri = model_deyismeyib(setirler, observations)
+        sadiq = davranis_ok and hash_ok and model_ok
+        sebebler = [*model_sebebleri, *hash_sebebleri, *davranis_sebebleri]
+
+        writer.write_manifest({
+            **kimlik, "nezaret_sadiqdir": sadiq,
+            "nezaret_sebebleri": sebebler, "tekrar": args.tekrar,
+            "model": model_adi(llm),
+        })
+        writer.write_summary(summary_metni(
+            basliq="Generasiya qolları (dev, saxlanmış kontekst)",
+            probe_id_=writer.paths.probe_id, argv=kimlik["argv"],
+            govde=_summary_govdesi(setirler, sadiq, sebebler),
+        ))
+    except BaseException as exc:  # noqa: BLE001 — KeyboardInterrupt da daxil
+        writer.mark_failed(type(exc).__name__)
+        raise
+
+    print(f"\nArtefakt: {artefakt_yolu(writer.paths.root)}")
+    if not sadiq:
+        print("\n⚠️ NƏZARƏT QOLU SADİQ DEYİL — cədvəl etibarsızdır:", file=sys.stderr)
+        for sebeb in sebebler:
+            print(f"   {sebeb}", file=sys.stderr)
+        return 5
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

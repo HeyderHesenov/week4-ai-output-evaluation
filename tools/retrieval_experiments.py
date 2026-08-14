@@ -56,6 +56,7 @@ from probe_common import (  # noqa: E402
     PROBES_DIRNAME,
     PROJECT_ROOT,
     add_sut_to_path,
+    artefakt_yolu,
     cedvel,
     probe_yarat,
     summary_metni,
@@ -531,7 +532,7 @@ def _olc(writer, kimlik: dict, settings: Settings, cases, args) -> int:
             govde=govde,
         )
     )
-    print(f"\nArtefakt: {writer.paths.root.relative_to(PROJECT_ROOT)}")
+    print(f"\nArtefakt: {artefakt_yolu(writer.paths.root)}")
     if uygunsuz and not args.allow_unmatched_budget:
         print(f"\n⚠️ Büdcəsi uyğun olmayan sətir: {', '.join(uygunsuz)}", file=sys.stderr)
         return 3

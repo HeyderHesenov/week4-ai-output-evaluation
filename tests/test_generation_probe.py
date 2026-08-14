@@ -199,10 +199,15 @@ def test_probe_case_leri_MODELE_CATAN_uclukdur() -> None:
 
 
 class _SahteLlm:
-    """`invoke(messages)` — SUT-un `ChatOpenAI`-dən işlətdiyi yeganə metod."""
+    """`invoke(messages)` — SUT-un `ChatOpenAI`-dən işlətdiyi yeganə metod.
 
-    def __init__(self, cavablar: dict[str, str]) -> None:
+    `model_name` `ChatOpenAI`-də var və probe modelin adını oradan oxuyur —
+    saxta obyekt də onu daşımalıdır, yoxsa model qapısı test edilə bilməz.
+    """
+
+    def __init__(self, cavablar: dict[str, str], *, model: str = "gpt-4o-mini") -> None:
         self.cavablar = cavablar
+        self.model_name = model
         self.cagirislar: list[list[dict]] = []
 
     def invoke(self, messages):
@@ -217,7 +222,7 @@ class _SahteLlm:
 def _obs(case_id: str, question: str) -> dict:
     return {
         "case_id": case_id, "question": question,
-        "chunks": [_cv()], "system_sha256": "",
+        "chunks": [_cv()], "system_sha256": "", "model": "",
     }
 
 
@@ -273,3 +278,138 @@ def test_nezaret_COXLUQ_uzre_qiymetlendirilir() -> None:
         {"case_id": "dev_ambiguous_limit", "qol": NEZARET_QOLU, "tekrar": 3, "sinif": "imtina"},
     ]
     assert nezaret_sadiqdir(setirler)[0] is True
+
+
+# --- Task 4: CLI, həqiqi SUT və artefakt -------------------------------------
+
+
+def test_probe_hash_i_KARKASIN_yazdigi_hash_ile_EYNI_formadadir() -> None:
+    """İki hash forması qapını YALANDAN bağlayırdı.
+
+    Probe `hexdigest()[:16]` yazırdı, karkas isə tam 64 simvol
+    (`eval/instrument.py`). `system_prompt_deyismeyib` onları birbaşa
+    tutuşdurduğu üçün prompt heç dəyişməsə belə uyğunsuzluq görünərdi:
+    alət 5 kodu qaytarar, PULLU run boşa gedər və cədvəl «etibarsız»
+    möhürü ilə yazılardı. Ona görə probe karkasın ÖZ funksiyasını çağırır —
+    ikinci tərif qalmır.
+    """
+    from eval.instrument import sha256_text
+    from tools.generation_probe import NEZARET_QOLU, olc
+
+    q = _qurucular()
+    setirler = olc(
+        {"dev_out_of_corpus_graphql": _obs("dev_out_of_corpus_graphql", "GraphQL?")},
+        llm=_SahteLlm({"": "Sənədlərdə bu suala cavab tapılmadı."}), q=q, tekrar=1,
+    )
+
+    nezaret = next(s for s in setirler if s["qol"] == NEZARET_QOLU)
+    assert nezaret["system_sha256"] == sha256_text(q.system_instruction)
+    assert len(nezaret["system_sha256"]) == 64
+
+
+def test_SYSTEM_PROMPT_run_dan_beri_deyisibse_qapi_baglanir() -> None:
+    """Qol 0 SUT-un prompt-unu OLDUĞU KİMİ işlədir — hash uyğun gəlməlidir.
+
+    Uyğun gəlmirsə, SUT-un system prompt-u saxlanmış run-dan bəri dəyişib
+    (pin yenilənib və ya submodule sürüşüb). Bu, davranış yoxlamasından
+    AYRIDIR və ondan güclüdür: davranış təsadüfən üst-üstə düşə bilər,
+    hash düşməz.
+    """
+    from tools.generation_probe import NEZARET_QOLU, system_prompt_deyismeyib
+
+    setirler = [{"case_id": "c1", "qol": NEZARET_QOLU, "system_sha256": "aaaa"}]
+    assert system_prompt_deyismeyib(setirler, {"c1": {"system_sha256": "aaaa"}}) == (True, [])
+
+    ok, sebebler = system_prompt_deyismeyib(setirler, {"c1": {"system_sha256": "bbbb"}})
+    assert ok is False
+    assert "aaaa" in sebebler[0] and "bbbb" in sebebler[0]
+
+
+def test_system_prompt_yoxlamasi_yalniz_NEZARET_qoluna_aiddir() -> None:
+    """Qol 1-3 prompt-u QƏSDƏN dəyişir — orada uyğunsuzluq gözləniləndir."""
+    from tools.generation_probe import system_prompt_deyismeyib
+
+    setirler = [{"case_id": "c1", "qol": "1-müqəddimə", "system_sha256": "ferqli"}]
+    assert system_prompt_deyismeyib(setirler, {"c1": {"system_sha256": "aaaa"}}) == (True, [])
+
+
+def test_MODEL_run_dakindan_ferqlidirse_qapi_baglanir() -> None:
+    """Probe LLM-i env-dəki `LLM_MODEL`-dən qurulur — o dəyişə bilər.
+
+    Başqa modellə ölçmək prompt qollarını müqayisə etməyi dayandırır: fərq
+    qoldan da, modeldən də gələ bilər və ayırd edilə bilməz. Davranış qapısı
+    bunu tutmaya bilər, çünki başqa model də «tek_oxunus» qaytara bilər.
+    """
+    from tools.generation_probe import NEZARET_QOLU, model_deyismeyib
+
+    setirler = [{"case_id": "c1", "qol": NEZARET_QOLU, "model": "gpt-4o-mini"}]
+    assert model_deyismeyib(setirler, {"c1": {"model": "gpt-4o-mini"}}) == (True, [])
+
+    ok, sebebler = model_deyismeyib(setirler, {"c1": {"model": "gpt-4o"}})
+    assert ok is False
+    assert "gpt-4o-mini" in sebebler[0] and "gpt-4o" in sebebler[0]
+
+
+def test_model_yoxlamasi_BOS_deyeri_ATLAYIR() -> None:
+    """Çağırışı olmayan case-in modeli bilinmir — uydurulmuş ad yazılmır."""
+    from tools.generation_probe import NEZARET_QOLU, model_deyismeyib
+
+    setirler = [{"case_id": "c1", "qol": NEZARET_QOLU, "model": "gpt-4o-mini"}]
+    assert model_deyismeyib(setirler, {"c1": {"model": ""}}) == (True, [])
+
+
+def test_repo_dan_KENAR_artefakt_yolu_aleti_cokdurmur(tmp_path) -> None:
+    """`relative_to` kənar yolda `ValueError` atırdı.
+
+    Ölçmə BİTDİKDƏN sonra, artefakt artıq diskdə olduğu halda alət çökürdü və
+    `except BaseException` onu «uğursuz» kimi möhürləyirdi — yəni uğurlu
+    ölçmə yalandan uğursuz görünürdü. Üç probe alətinin hər üçü eyni sətri
+    işlədirdi.
+    """
+    from probe_common import PROJECT_ROOT, artefakt_yolu
+
+    assert artefakt_yolu(PROJECT_ROOT / "logs" / "probes" / "p1") == "logs/probes/p1"
+    assert artefakt_yolu(tmp_path / "p1") == str(tmp_path / "p1")
+
+
+def test_nezaret_sadiq_deyilse_alet_BES_kodu_qaytarir(monkeypatch, tmp_path, capsys) -> None:
+    """Etibarsız cədvəl SƏSSİZ yazılmır — çıxış kodu onu deyir."""
+    import tools.generation_probe as mod
+
+    monkeypatch.setattr(mod, "musahideleri_oxu", lambda run_id: {
+        "dev_ambiguous_limit": _obs("dev_ambiguous_limit", "Limit nə qədərdir?"),
+    })
+    monkeypatch.setattr(mod, "sut_qurucular", lambda settings: _qurucular())
+    # Nəzarət qolunda GÖZLƏNİLMƏYƏN davranış: «tek_oxunus» əvəzinə imtina.
+    monkeypatch.setattr(mod, "llm_qur", lambda settings: _SahteLlm(
+        {"": "Sənədlərdə bu suala cavab tapılmadı."}
+    ))
+
+    kod = mod.main(["--run", "r1", "--probes-dir", str(tmp_path)])
+
+    assert kod == 5
+    assert "nəzarət" in capsys.readouterr().err.lower()
+
+
+def test_ugurlu_probe_ARTEFAKT_yazir(monkeypatch, tmp_path) -> None:
+    import json
+
+    import tools.generation_probe as mod
+
+    monkeypatch.setattr(mod, "musahideleri_oxu", lambda run_id: {
+        "dev_ambiguous_limit": _obs("dev_ambiguous_limit", "Limit nə qədərdir?"),
+    })
+    monkeypatch.setattr(mod, "sut_qurucular", lambda settings: _qurucular())
+    monkeypatch.setattr(mod, "llm_qur", lambda settings: _SahteLlm({"": "Limit 200-dür [1]."}))
+
+    assert mod.main(["--run", "r1", "--probes-dir", str(tmp_path)]) == 0
+
+    qovluq = next(p for p in tmp_path.iterdir() if p.is_dir())
+    manifest = json.loads((qovluq / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "tamam"
+    assert manifest["nezaret_sadiqdir"] is True
+    # Hansı modelin ölçüldüyü artefaktdan oxunmalıdır — sonradan soruşmaq üçün
+    # başqa mənbə yoxdur.
+    assert manifest["model"] == "gpt-4o-mini"
+    assert (qovluq / "summary.md").exists()
+    assert (qovluq / "rows.jsonl").read_text(encoding="utf-8").count("\n") == 12

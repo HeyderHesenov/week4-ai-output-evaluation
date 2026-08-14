@@ -62,6 +62,7 @@ from probe_common import (  # noqa: E402
     PROBES_DIRNAME,
     PROJECT_ROOT,
     add_sut_to_path,
+    artefakt_yolu,
     cedvel,
     probe_yarat,
     summary_metni,
@@ -266,7 +267,7 @@ def _sweep_et(writer, kimlik: dict, settings: Settings, cases, args) -> int:
             ),
         )
     )
-    print(f"\nArtefakt: {writer.paths.root.relative_to(PROJECT_ROOT)}")
+    print(f"\nArtefakt: {artefakt_yolu(writer.paths.root)}")
     return 0
 
 
